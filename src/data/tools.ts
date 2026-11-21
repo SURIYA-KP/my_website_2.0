@@ -41,14 +41,6 @@ export const tools: Tool[] = [
     keywords: ['json', 'yaml', 'csv', 'format', 'validate', 'typescript', 'tree'],
   },
   {
-    slug: 'text-diff',
-    name: 'Text Diff',
-    tagline: 'Compare two texts side by side or inline, down to the word or character.',
-    category: 'Developer',
-    glyph: '±',
-    keywords: ['diff', 'compare', 'text', 'changes', 'merge'],
-  },
-  {
     slug: 'dev-toolkit',
     name: 'Dev Toolkit',
     tagline: 'Base64, URL and HTML encoding, JWT decoding, hashes, UUIDs, timestamps and secure passwords.',
@@ -73,28 +65,12 @@ export const tools: Tool[] = [
     keywords: ['qr', 'qr code', 'wifi', 'vcard', 'scan', 'barcode'],
   },
   {
-    slug: 'color-lab',
-    name: 'Color Lab',
-    tagline: 'Convert colors, check WCAG contrast, generate palettes and gradients, and pull palettes from images.',
-    category: 'Media',
-    glyph: 'Co',
-    keywords: ['color', 'palette', 'contrast', 'wcag', 'gradient', 'oklch', 'hex'],
-  },
-  {
     slug: 'data-explorer',
     name: 'Data Explorer',
     tagline: 'Open a CSV, then sort, filter, profile columns, chart it and query it with SQL.',
     category: 'Data',
     glyph: 'Dx',
     keywords: ['csv', 'tsv', 'data', 'sql', 'chart', 'table', 'statistics'],
-  },
-  {
-    slug: 'token-counter',
-    name: 'LLM Token Counter',
-    tagline: 'See exactly how text splits into tokens for GPT-style tokenizers, and estimate context use and cost.',
-    category: 'AI & ML',
-    glyph: 'Tk',
-    keywords: ['tokens', 'tokenizer', 'llm', 'gpt', 'tiktoken', 'context window', 'cost'],
   },
   {
     slug: 'optimizer-viz',

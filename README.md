@@ -12,13 +12,10 @@ See [PRINCIPLES.md](./PRINCIPLES.md) for the ground rules every tool follows.
 | Documents | **Diagram Studio** | Mermaid editor for flowcharts, sequence diagrams, mind maps and more. Paste AI output directly; export SVG/PNG |
 | Documents | **PDF Toolkit** | Merge, split, reorder, rotate and delete pages; images → PDF |
 | Developer | **JSON Studio** | Validate/format/repair JSON, tree explorer, JSON ↔ YAML ↔ CSV, JSON → TypeScript |
-| Developer | **Text Diff** | Side-by-side or unified diff with word/char highlights and patch export |
 | Developer | **Dev Toolkit** | Base64, URL, HTML entities, JWT, hashes, UUID v4/v7, timestamps, passwords, number bases |
 | Media | **Image Studio** | Batch compress/resize/convert, target file size, EXIF/GPS stripping, SVG → PNG |
 | Media | **QR Studio** | Styled QR codes (URL, Wi-Fi, vCard, …) and scanning from image or camera |
-| Media | **Color Lab** | Color conversion, WCAG/APCA contrast, palettes, gradients, palette from image, color-blindness check |
 | Data | **Data Explorer** | CSV/JSON table with filters, column profiling, charts and SQL |
-| AI & ML | **LLM Token Counter** | Token visualization for GPT tokenizers, context-window usage and cost estimates |
 | AI & ML | **Optimizer Race** | SGD, Momentum, Adam and others racing across loss landscapes |
 | AI & ML | **ML Lab** | Interactive k-means and a from-scratch neural network learning decision boundaries |
 
