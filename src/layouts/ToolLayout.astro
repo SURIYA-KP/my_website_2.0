@@ -1,0 +1,37 @@
+---
+import Base from './Base.astro';
+import { toolBySlug } from '../data/tools';
+
+interface Props {
+  slug: string;
+  /** Use the full viewport width for editor-style tools. */
+  wide?: boolean;
+  allowEval?: boolean;
+}
+const { slug, wide = false, allowEval = false } = Astro.props;
+const tool = toolBySlug(slug);
+---
+<Base title={`${tool.name} · Browser Tools`} description={tool.tagline} allowEval={allowEval}>
+  <main class="tool-page" data-tool={slug}>
+    <div class="container tool-hero" style={wide ? 'max-width:none' : undefined}>
+      <a class="small muted back-link" href="/tools/">← All tools</a>
+      <div class="row-between">
+        <div class="grow">
+          <h1>{tool.name}</h1>
+          <p class="muted tool-tagline">{tool.tagline}</p>
+        </div>
+        <slot name="hero-actions" />
+      </div>
+    </div>
+    <div class="container tool-body" style={wide ? 'max-width:none' : undefined}>
+      <slot />
+    </div>
+  </main>
+  <style is:global>
+    .tool-hero { padding-top: 20px; padding-bottom: 12px; }
+    .tool-hero h1 { margin: 6px 0 4px; }
+    .tool-tagline { margin: 0; max-width: 72ch; }
+    .back-link { display: inline-block; }
+    .tool-body { padding-bottom: 16px; }
+  </style>
+</Base>

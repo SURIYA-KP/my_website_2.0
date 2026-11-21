@@ -1,0 +1,79 @@
+---
+import { tools, categories } from '../data/tools';
+---
+<main class="container hub">
+  <section class="hub-hero">
+    <h1>Everyday tools that never leave your browser</h1>
+    <p class="muted">
+      Convert, format, compare, visualize and explore. Your files and text are processed on your own device.
+      Nothing is uploaded, stored or tracked.
+    </p>
+    <div class="hub-search">
+      <input class="input" id="tool-search" type="search" placeholder="Search tools… (try “pdf”, “json”, “flowchart”)" aria-label="Search tools" autocomplete="off" />
+    </div>
+  </section>
+  {categories.map((cat) => {
+    const list = tools.filter((t) => t.category === cat);
+    return (
+      <section class="hub-section" data-category={cat}>
+        <h2 class="hub-cat">{cat}</h2>
+        <div class="hub-grid">
+          {list.map((t, i) => (
+            <a class="tool-card" href={`/tools/${t.slug}/`} data-search={`${t.name} ${t.tagline} ${t.keywords.join(' ')}`.toLowerCase()}>
+              <span class="tool-glyph" style={`--hue: var(--c${(categories.indexOf(cat) % 8) + 1})`}>{t.glyph}</span>
+              <span class="tool-card-text">
+                <span class="tool-card-name">{t.name}</span>
+                <span class="tool-card-desc">{t.tagline}</span>
+              </span>
+            </a>
+          ))}
+        </div>
+      </section>
+    );
+  })}
+  <p class="muted" id="no-results" hidden>No tools match your search.</p>
+</main>
+<script>
+  const input = document.getElementById('tool-search') as HTMLInputElement;
+  const cards = Array.from(document.querySelectorAll<HTMLElement>('.tool-card'));
+  const sections = Array.from(document.querySelectorAll<HTMLElement>('.hub-section'));
+  const empty = document.getElementById('no-results')!;
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    let shown = 0;
+    cards.forEach((c) => {
+      const ok = q.every((w) => c.dataset.search!.includes(w));
+      c.hidden = !ok;
+      if (ok) shown++;
+    });
+    sections.forEach((s) => (s.hidden = !s.querySelector('.tool-card:not([hidden])')));
+    empty.hidden = shown > 0;
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === '/' && document.activeElement !== input) { e.preventDefault(); input.focus(); }
+  });
+</script>
+<style>
+  .hub-hero { padding: 48px 0 24px; max-width: 760px; }
+  .hub-hero h1 { font-size: clamp(1.75rem, 4vw, 2.6rem); letter-spacing: -0.025em; }
+  .hub-hero p { font-size: 1.05rem; }
+  .hub-search { max-width: 480px; }
+  .hub-search .input { height: 42px; font-size: 1rem; }
+  .hub-section { margin-top: 28px; }
+  .hub-cat { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); font-weight: 700; }
+  .hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .tool-card {
+    display: flex; gap: 14px; align-items: flex-start; padding: 16px;
+    background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    color: var(--text); transition: border-color .15s, box-shadow .15s, transform .15s;
+  }
+  .tool-card:hover { text-decoration: none; border-color: var(--border-strong); box-shadow: var(--shadow); transform: translateY(-1px); }
+  .tool-glyph {
+    flex: none; width: 42px; height: 42px; border-radius: 10px; display: grid; place-items: center;
+    font-family: var(--font-mono); font-weight: 700; font-size: 0.85rem;
+    color: var(--hue); background: color-mix(in srgb, var(--hue) 14%, transparent);
+  }
+  .tool-card-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .tool-card-name { font-weight: 650; }
+  .tool-card-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.45; }
+</style>

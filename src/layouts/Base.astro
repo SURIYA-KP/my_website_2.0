@@ -1,0 +1,88 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  /** Some libraries (e.g. alasql) compile code at runtime and need 'unsafe-eval'. */
+  allowEval?: boolean;
+}
+const { title, description = 'Free, private tools that run entirely in your browser.', allowEval = false } = Astro.props;
+
+// Privacy guarantee enforced by the browser: pages may only talk to their own origin.
+// Nothing a visitor types or drops into a tool can be sent to a third party.
+const csp = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:${allowEval ? " 'unsafe-eval'" : ''}`,
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self' data: blob:",
+  "worker-src 'self' blob:",
+  "frame-src 'self' blob: data:",
+  "media-src 'self' blob: data:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'none'",
+].join('; ');
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content={csp} />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Cpath d='M9 11l5 5-5 5M16 21h7' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container site-header-inner">
+        <a class="brand" href="/tools/">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" width="22" height="22"><rect width="32" height="32" rx="8" fill="currentColor"/><path d="M9 11l5 5-5 5M16 21h7" stroke="var(--bg-elev)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span>Browser Tools</span>
+        </a>
+        <nav class="row">
+          <span class="badge badge-success privacy-pill" title="All processing happens on your device. Nothing is uploaded or stored.">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            100% in-browser
+          </span>
+          <button class="btn btn-ghost btn-icon" id="theme-toggle" type="button" aria-label="Toggle color theme" title="Toggle theme">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          </button>
+        </nav>
+      </div>
+    </header>
+    <slot />
+    <footer class="site-footer">
+      <div class="container small faint">
+        Every tool runs locally in your browser. No uploads, no accounts, no tracking, no storage.
+      </div>
+    </footer>
+    <script is:inline>
+      // Theme toggle — intentionally not persisted (no storage). Follows the OS by default.
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        btn && btn.addEventListener('click', function () {
+          var root = document.documentElement;
+          var sysDark = matchMedia('(prefers-color-scheme: dark)').matches;
+          var cur = root.dataset.theme || (sysDark ? 'dark' : 'light');
+          root.dataset.theme = cur === 'dark' ? 'light' : 'dark';
+        });
+      })();
+    </script>
+    <style is:global>
+      .site-header { position: sticky; top: 0; z-index: 50; height: var(--header-h); background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: saturate(1.4) blur(10px); border-bottom: 1px solid var(--border); }
+      .site-header-inner { height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+      .brand { display: inline-flex; align-items: center; gap: 8px; color: var(--text); font-weight: 700; letter-spacing: -0.01em; }
+      .brand:hover { text-decoration: none; }
+      .brand-mark { color: var(--accent); display: inline-flex; }
+      .site-footer { padding: 32px 0 40px; margin-top: 48px; border-top: 1px solid var(--border); }
+      @media (max-width: 480px) { .privacy-pill { display: none; } }
+    </style>
+  </body>
+</html>
