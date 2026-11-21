@@ -17,14 +17,6 @@ export const categories: Category[] = ['Documents', 'Developer', 'Media', 'Data'
 
 export const tools: Tool[] = [
   {
-    slug: 'markdown-to-pdf',
-    name: 'Markdown → PDF',
-    tagline: 'Write or drop Markdown, preview it live with code, math and diagrams, and export a clean PDF.',
-    category: 'Documents',
-    glyph: 'Md',
-    keywords: ['markdown', 'pdf', 'export', 'print', 'notes', 'readme'],
-  },
-  {
     slug: 'diagram-studio',
     name: 'Diagram Studio',
     tagline: 'Turn text or AI-generated Mermaid into flowcharts, sequence diagrams, mind maps and more. Export SVG/PNG.',
@@ -55,14 +47,6 @@ export const tools: Tool[] = [
     category: 'Developer',
     glyph: '±',
     keywords: ['diff', 'compare', 'text', 'changes', 'merge'],
-  },
-  {
-    slug: 'regex-lab',
-    name: 'Regex Lab',
-    tagline: 'Build and test regular expressions with live highlighting, capture groups, replace preview and a cheat sheet.',
-    category: 'Developer',
-    glyph: '.*',
-    keywords: ['regex', 'regular expression', 'match', 'replace', 'test'],
   },
   {
     slug: 'dev-toolkit',

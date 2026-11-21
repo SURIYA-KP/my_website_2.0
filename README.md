@@ -9,12 +9,10 @@ See [PRINCIPLES.md](./PRINCIPLES.md) for the ground rules every tool follows.
 
 | Category | Tool | What it does |
 | --- | --- | --- |
-| Documents | **Markdown → PDF** | Live Markdown editor (GFM, code highlighting, math, Mermaid) with clean PDF/HTML export |
 | Documents | **Diagram Studio** | Mermaid editor for flowcharts, sequence diagrams, mind maps and more. Paste AI output directly; export SVG/PNG |
 | Documents | **PDF Toolkit** | Merge, split, reorder, rotate and delete pages; images → PDF |
 | Developer | **JSON Studio** | Validate/format/repair JSON, tree explorer, JSON ↔ YAML ↔ CSV, JSON → TypeScript |
 | Developer | **Text Diff** | Side-by-side or unified diff with word/char highlights and patch export |
-| Developer | **Regex Lab** | Live regex testing, groups, replace, plain-English explanation, safe against catastrophic backtracking |
 | Developer | **Dev Toolkit** | Base64, URL, HTML entities, JWT, hashes, UUID v4/v7, timestamps, passwords, number bases |
 | Media | **Image Studio** | Batch compress/resize/convert, target file size, EXIF/GPS stripping, SVG → PNG |
 | Media | **QR Studio** | Styled QR codes (URL, Wi-Fi, vCard, …) and scanning from image or camera |
