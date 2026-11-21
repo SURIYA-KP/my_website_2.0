@@ -11,6 +11,8 @@ export interface Tool {
   /** 1–2 character monogram shown on the card */
   glyph: string;
   keywords: string[];
+  /** Finished and tested. Only ready tools are listed on the hub. */
+  ready?: boolean;
 }
 
 export const categories: Category[] = ['Documents', 'Developer', 'Media', 'Data', 'AI & ML'];
@@ -18,6 +20,7 @@ export const categories: Category[] = ['Documents', 'Developer', 'Media', 'Data'
 export const tools: Tool[] = [
   {
     slug: 'svg-studio',
+    ready: true,
     name: 'SVG Studio',
     tagline: 'Paste SVG from any AI (or write Mermaid), then click, drag and restyle each part visually, with the code kept in sync. Export SVG or PNG.',
     category: 'Documents',
@@ -89,6 +92,9 @@ export const tools: Tool[] = [
     keywords: ['neural network', 'k-means', 'clustering', 'classification', 'decision boundary', 'visualization'],
   },
 ];
+
+/** Tools shown on the hub. */
+export const readyTools = tools.filter((t) => t.ready);
 
 export const toolBySlug = (slug: string) => {
   const t = tools.find((t) => t.slug === slug);

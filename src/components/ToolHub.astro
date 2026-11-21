@@ -1,5 +1,5 @@
 ---
-import { tools, categories } from '../data/tools';
+import { readyTools as tools, categories } from '../data/tools';
 ---
 <main class="container hub">
   <section class="hub-hero">
@@ -14,6 +14,7 @@ import { tools, categories } from '../data/tools';
   </section>
   {categories.map((cat) => {
     const list = tools.filter((t) => t.category === cat);
+    if (!list.length) return null;
     return (
       <section class="hub-section" data-category={cat}>
         <h2 class="hub-cat">{cat}</h2>

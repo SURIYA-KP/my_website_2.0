@@ -1,6 +1,400 @@
 ---
 import ToolLayout from '../../layouts/ToolLayout.astro';
+
+const i = {
+  paste: '<path d="M9 4h6M9 4a2 2 0 0 0-2 2v0H5v15h14V6h-2a2 2 0 0 0-2-2M9 4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2"/><path d="M9 12h6M9 16h4"/>',
+  open: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  mermaid: '<rect x="3" y="3" width="7" height="5" rx="1"/><rect x="14" y="16" width="7" height="5" rx="1"/><path d="M6.5 8v4.5h11V16"/>',
+  undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  redo: '<path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
+  dup: '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
+  del: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  group: '<rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="3 3"/><rect x="7" y="7" width="5" height="5"/><rect x="12" y="12" width="5" height="5"/>',
+  ungroup: '<rect x="4" y="4" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/>',
+  front: '<rect x="8" y="8" width="12" height="12" rx="1" fill="currentColor" fill-opacity=".25"/><path d="M4 16V5a1 1 0 0 1 1-1h11"/>',
+  back: '<rect x="4" y="4" width="12" height="12" rx="1"/><path d="M8 20h11a1 1 0 0 0 1-1V8" stroke-dasharray="2 2"/>',
+  up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
+  down: '<path d="M12 5v14M6 13l6 6 6-6"/>',
+  zoomOut: '<circle cx="11" cy="11" r="7"/><path d="M8 11h6M20 20l-4-4"/>',
+  zoomIn: '<circle cx="11" cy="11" r="7"/><path d="M8 11h6M11 8v6M20 20l-4-4"/>',
+  fit: '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>',
+  grid: '<path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>',
+  play: '<path d="M7 4l13 8-13 8z"/>',
+  pause: '<path d="M7 4h4v16H7zM13 4h4v16h-4z"/>',
+  restart: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  ai: '<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+  export: '<path d="M12 3v12M7 10l5 5 5-5M4 19h16"/>',
+};
+const ico = (d: string) => `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 ---
-<ToolLayout slug="svg-studio">
-  <div class="card"><p class="muted">Coming soon.</p></div>
+<ToolLayout slug="svg-studio" wide>
+  <div class="svgs" id="svgs">
+    <div class="svgs-toolbar" role="toolbar" aria-label="SVG Studio toolbar">
+      <div class="svgs-tgroup">
+        <button type="button" class="btn btn-primary" data-cmd="paste-ai" title="Paste a chat reply that contains SVG or Mermaid"><Fragment set:html={ico(i.paste)} /><span>Paste from AI</span></button>
+        <button type="button" class="btn" data-cmd="open" aria-label="Open" title="Open an .svg file (or drop one anywhere)"><Fragment set:html={ico(i.open)} /><span class="svgs-hide-md">Open</span></button>
+        <button type="button" class="btn" data-cmd="mermaid" aria-label="Mermaid" title="Create an editable diagram from Mermaid code"><Fragment set:html={ico(i.mermaid)} /><span class="svgs-hide-md">Mermaid</span></button>
+        <label class="sr-only" for="svgs-sample">Load a sample</label>
+        <select class="select svgs-sample" id="svgs-sample"></select>
+      </div>
+      <div class="svgs-tgroup">
+        <button type="button" class="btn btn-icon" data-cmd="undo" title="Undo (Ctrl+Z)" aria-label="Undo"><Fragment set:html={ico(i.undo)} /></button>
+        <button type="button" class="btn btn-icon" data-cmd="redo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><Fragment set:html={ico(i.redo)} /></button>
+      </div>
+      <div class="svgs-tgroup" data-needs-selection>
+        <button type="button" class="btn btn-icon" data-cmd="duplicate" title="Duplicate (Ctrl+D)" aria-label="Duplicate"><Fragment set:html={ico(i.dup)} /></button>
+        <button type="button" class="btn btn-icon" data-cmd="delete" title="Delete (Del)" aria-label="Delete"><Fragment set:html={ico(i.del)} /></button>
+        <button type="button" class="btn btn-icon" data-cmd="group" title="Group (Ctrl+G)" aria-label="Group"><Fragment set:html={ico(i.group)} /></button>
+        <button type="button" class="btn btn-icon" data-cmd="ungroup" title="Ungroup (Ctrl+Shift+G)" aria-label="Ungroup"><Fragment set:html={ico(i.ungroup)} /></button>
+        <span class="btn-group">
+          <button type="button" class="btn btn-icon" data-cmd="front" title="Bring to front (Ctrl+Shift+])" aria-label="Bring to front"><Fragment set:html={ico(i.front)} /></button>
+          <button type="button" class="btn btn-icon" data-cmd="forward" title="Bring forward (Ctrl+])" aria-label="Bring forward"><Fragment set:html={ico(i.up)} /></button>
+          <button type="button" class="btn btn-icon" data-cmd="backward" title="Send backward (Ctrl+[)" aria-label="Send backward"><Fragment set:html={ico(i.down)} /></button>
+          <button type="button" class="btn btn-icon" data-cmd="back" title="Send to back (Ctrl+Shift+[)" aria-label="Send to back"><Fragment set:html={ico(i.back)} /></button>
+        </span>
+      </div>
+      <div class="svgs-tgroup">
+        <span class="btn-group">
+          <button type="button" class="btn btn-icon" data-cmd="zoom-out" title="Zoom out (-)" aria-label="Zoom out"><Fragment set:html={ico(i.zoomOut)} /></button>
+          <button type="button" class="btn svgs-zoom" data-cmd="zoom-100" title="Zoom to 100% (Shift+0)" aria-label="Zoom to 100%" id="svgs-zoom">100%</button>
+          <button type="button" class="btn btn-icon" data-cmd="zoom-in" title="Zoom in (+)" aria-label="Zoom in"><Fragment set:html={ico(i.zoomIn)} /></button>
+          <button type="button" class="btn btn-icon" data-cmd="fit" title="Fit to screen (Shift+1)" aria-label="Fit to screen"><Fragment set:html={ico(i.fit)} /></button>
+        </span>
+        <button type="button" class="btn btn-icon" data-cmd="grid" aria-pressed="false" title="Show grid" aria-label="Show grid"><Fragment set:html={ico(i.grid)} /></button>
+      </div>
+      <div class="svgs-tgroup" id="svgs-anim" hidden>
+        <button type="button" class="btn btn-icon" data-cmd="play" id="svgs-play" aria-pressed="false" title="Pause / play animations"><span class="svgs-ico-pause"><Fragment set:html={ico(i.pause)} /></span><span class="svgs-ico-play"><Fragment set:html={ico(i.play)} /></span><span class="svgs-play-label sr-only">Pause</span></button>
+        <button type="button" class="btn btn-icon" data-cmd="restart" title="Restart animations" aria-label="Restart animations"><Fragment set:html={ico(i.restart)} /></button>
+      </div>
+      <div class="svgs-tgroup svgs-out">
+        <button type="button" class="btn" data-cmd="copy-ai" aria-label="Copy for AI" title="Copy the SVG in a code block, ready to paste back into your AI chat"><Fragment set:html={ico(i.ai)} /><span class="svgs-hide-sm">Copy for AI</span></button>
+        <button type="button" class="btn btn-primary" data-cmd="export" title="Download SVG or PNG"><Fragment set:html={ico(i.export)} /><span>Export</span></button>
+      </div>
+    </div>
+
+    <div class="alert alert-warning svgs-warnings" id="svgs-warnings" role="status" hidden></div>
+
+    <div class="svgs-main" id="svgs-main" data-tab="props">
+      <aside class="panel svgs-layers" aria-label="Layers">
+        <div class="panel-header"><span>Layers</span><span class="small faint svgs-layers-hint" title="Keyboard: arrows move, Enter renames, H hides, L locks">front on top</span></div>
+        <div class="svgs-layers-body" id="svgs-layers" role="tree" aria-label="Document layers" aria-multiselectable="true"></div>
+      </aside>
+
+      <div class="svgs-center">
+        <div class="svgs-viewport" id="svgs-viewport" tabindex="0" aria-label="Canvas. Click to select parts, drag to move, arrow keys to nudge." role="application">
+          <div class="svgs-paper" data-bg="checker"></div>
+          <div class="svgs-host" id="svgs-host"></div>
+          <div class="svgs-grid" hidden></div>
+          <svg class="svgs-overlay" aria-hidden="true"></svg>
+        </div>
+        <div class="svgs-status small" id="svgs-status" aria-live="polite"></div>
+      </div>
+
+      <div class="svgs-tabs" role="tablist" aria-label="Panels">
+        <button type="button" class="svgs-tab svgs-tab-layers" role="tab" data-pane="layers" aria-selected="false">Layers</button>
+        <button type="button" class="svgs-tab" role="tab" data-pane="props" aria-selected="true">Properties</button>
+        <button type="button" class="svgs-tab" role="tab" data-pane="code" aria-selected="false">Code</button>
+      </div>
+      <div class="svgs-pane svgs-props" id="svgs-props" role="tabpanel" aria-label="Properties"></div>
+      <div class="svgs-pane svgs-code" id="svgs-code" role="tabpanel" aria-label="Code">
+        <div class="svgs-code-bar">
+          <span class="svgs-code-status small muted" aria-live="polite"></span>
+          <span class="row">
+            <button type="button" class="btn btn-sm" data-cmd="format" title="Re-format the code">Format</button>
+            <button type="button" class="btn btn-sm" data-cmd="copy-svg">Copy</button>
+          </span>
+        </div>
+        <div class="svgs-editor">
+          <div class="svgs-gutter" aria-hidden="true"></div>
+          <textarea class="svgs-textarea code-input" id="svgs-code-text" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off" aria-label="SVG code"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paste from AI -->
+  <dialog class="svgs-dialog" id="svgs-dlg-paste" aria-labelledby="svgs-dlg-paste-title">
+    <form method="dialog" class="svgs-dlg-inner">
+      <header class="svgs-dlg-head"><h2 id="svgs-dlg-paste-title">Paste from AI</h2><button class="btn btn-ghost btn-icon" value="cancel" aria-label="Close">✕</button></header>
+      <p class="small muted">Paste the whole reply from ChatGPT, Claude, Gemini… SVG is found inside <code>```svg</code> / <code>```xml</code> / <code>```html</code> blocks or as raw <code>&lt;svg&gt;</code> markup. Mermaid diagrams open the Mermaid converter.</p>
+      <label class="label" for="svgs-paste-text">AI reply</label>
+      <textarea class="textarea code-input" id="svgs-paste-text" rows="10" spellcheck="false" placeholder="Here's an SVG logo for your coffee shop:&#10;&#10;```svg&#10;<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 200 200&quot;>…</svg>&#10;```"></textarea>
+      <div class="alert alert-error" id="svgs-paste-error" role="alert" hidden></div>
+      <div class="svgs-candidates" id="svgs-candidates" hidden></div>
+      <details class="svgs-prompt">
+        <summary>Prompt for your AI <span class="small muted">— get SVG that is easy to edit here</span></summary>
+        <pre class="svgs-prompt-text" id="svgs-prompt-text"></pre>
+        <button type="button" class="btn btn-sm" data-cmd="copy-prompt">Copy prompt</button>
+      </details>
+      <footer class="svgs-dlg-foot">
+        <button class="btn" value="cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="svgs-paste-go">Find SVG</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Mermaid -->
+  <dialog class="svgs-dialog svgs-dialog-wide" id="svgs-dlg-mermaid" aria-labelledby="svgs-dlg-mermaid-title">
+    <form method="dialog" class="svgs-dlg-inner">
+      <header class="svgs-dlg-head"><h2 id="svgs-dlg-mermaid-title">From Mermaid</h2><button class="btn btn-ghost btn-icon" value="cancel" aria-label="Close">✕</button></header>
+      <p class="small muted">Write or paste Mermaid (or pick a template). It is rendered to SVG with real text labels, then opened in the editor so you can restyle and move every node.</p>
+      <div class="alert alert-info" id="svgs-mermaid-info" hidden></div>
+      <div class="svgs-field">
+        <label class="label" for="svgs-template">Template</label>
+        <select class="select" id="svgs-template"></select>
+      </div>
+      <label class="label" for="svgs-mermaid-text">Mermaid code</label>
+      <textarea class="textarea code-input" id="svgs-mermaid-text" rows="12" spellcheck="false"></textarea>
+      <div class="alert alert-error svgs-pre" id="svgs-mermaid-error" role="alert" hidden></div>
+      <footer class="svgs-dlg-foot">
+        <button type="button" class="btn btn-sm btn-ghost" data-cmd="copy-prompt" title="A prompt that asks a chatbot for clean, grouped SVG or Mermaid">Copy prompt for your AI</button>
+        <span class="small muted grow" id="svgs-mermaid-status"></span>
+        <button class="btn" value="cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="svgs-mermaid-go">Convert to editable SVG</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Export -->
+  <dialog class="svgs-dialog" id="svgs-dlg-export" aria-labelledby="svgs-dlg-export-title">
+    <form method="dialog" class="svgs-dlg-inner">
+      <header class="svgs-dlg-head"><h2 id="svgs-dlg-export-title">Export</h2><button class="btn btn-ghost btn-icon" value="cancel" aria-label="Close">✕</button></header>
+      <div class="svgs-field">
+        <label class="label" for="svgs-export-name">File name</label>
+        <input class="input" id="svgs-export-name" spellcheck="false" autocomplete="off" />
+      </div>
+      <section class="svgs-export-sec">
+        <h3>SVG</h3>
+        <label class="checkbox"><input type="checkbox" id="svgs-minify" /> Minify (smaller file, one line)</label>
+        <p class="small muted" id="svgs-svg-size"></p>
+        <div class="row">
+          <button type="button" class="btn btn-primary" id="svgs-dl-svg">Download SVG</button>
+          <button type="button" class="btn" data-cmd="copy-svg-export">Copy code</button>
+        </div>
+      </section>
+      <section class="svgs-export-sec">
+        <h3>PNG</h3>
+        <div class="row">
+          <div class="btn-group" role="group" aria-label="PNG scale" id="svgs-scale">
+            <button type="button" class="btn btn-sm" data-scale="1" aria-pressed="false">1×</button>
+            <button type="button" class="btn btn-sm" data-scale="2" aria-pressed="true">2×</button>
+            <button type="button" class="btn btn-sm" data-scale="4" aria-pressed="false">4×</button>
+          </div>
+          <span class="small muted" id="svgs-png-size"></span>
+        </div>
+        <div class="row">
+          <label class="checkbox"><input type="radio" name="svgs-pngbg" value="transparent" checked /> Transparent</label>
+          <label class="checkbox"><input type="radio" name="svgs-pngbg" value="solid" /> Solid</label>
+          <input type="color" id="svgs-png-color" value="#ffffff" aria-label="PNG background color" />
+        </div>
+        <div class="row">
+          <button type="button" class="btn btn-primary" id="svgs-dl-png">Download PNG</button>
+          <button type="button" class="btn" id="svgs-copy-png">Copy image</button>
+        </div>
+      </section>
+      <p class="small muted">Exports never include editor-only markers (locks). Animations are exported in the SVG; PNG captures the first frame.</p>
+    </form>
+  </dialog>
 </ToolLayout>
+
+<script>
+  import { init } from '../../tools/svg-studio/main';
+  init();
+</script>
+
+<style is:global>
+  body .svgs { --svgs-h: clamp(520px, calc(100vh - 230px), 1100px); display: flex; flex-direction: column; gap: 10px; }
+  body .svgs-toolbar { display: flex; flex-wrap: wrap; gap: 8px 8px; align-items: center; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; }
+  body .svgs-tgroup { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+  body .svgs-tgroup + .svgs-tgroup { padding-left: 8px; border-left: 1px solid var(--border); }
+  body .svgs-out { margin-left: auto; }
+  body .svgs-toolbar .btn-icon { width: 32px; }
+  body .svgs-sample { width: 116px; }
+  body .svgs-zoom { min-width: 62px; font-variant-numeric: tabular-nums; padding: 0 6px; }
+  body [data-cmd='grid'][aria-pressed='true'] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  body #svgs-play .svgs-ico-play { display: none; }
+  body #svgs-play[aria-pressed='true'] .svgs-ico-play { display: inline-flex; }
+  body #svgs-play[aria-pressed='true'] .svgs-ico-pause { display: none; }
+  body #svgs-play span { display: inline-flex; }
+  body .svgs-warnings { display: flex; gap: 10px; align-items: flex-start; }
+  body .svgs-warnings ul { margin: 0; padding-left: 18px; flex: 1; }
+  body .svgs-warnings button { flex: none; }
+
+  body .svgs-main {
+    display: grid; column-gap: 10px; row-gap: 0; height: var(--svgs-h);
+    grid-template-columns: minmax(200px, 250px) minmax(0, 1fr) minmax(280px, 340px);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: 'layers center tabs' 'layers center side';
+  }
+  body .svgs-layers { grid-area: layers; min-height: 0; overflow: hidden; }
+  body .svgs-layers-body { flex: 1; overflow: auto; padding: 4px 0; }
+  body .svgs-center { grid-area: center; display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: 6px; }
+  body .svgs-tabs { grid-area: tabs; display: flex; gap: 2px; background: var(--bg-elev); border: 1px solid var(--border); border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; padding: 4px 6px 0; }
+  body .svgs-tab { appearance: none; border: 0; background: transparent; color: var(--text-muted); font: inherit; font-size: 0.85rem; font-weight: 600; padding: 8px 12px; border-bottom: 2px solid transparent; cursor: pointer; }
+  body .svgs-tab:hover { color: var(--text); }
+  body .svgs-tab[aria-selected='true'] { color: var(--accent); border-bottom-color: var(--accent); }
+  body .svgs-tab-layers { display: none; }
+  body .svgs-pane { grid-area: side; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); min-height: 0; overflow: auto; }
+  body .svgs-main[data-tab='code'] { grid-template-columns: minmax(180px, 220px) minmax(0, 1fr) minmax(320px, 40%); }
+  body .svgs-main[data-tab='props'] .svgs-code, body .svgs-main[data-tab='layers'] .svgs-code, body .svgs-main[data-tab='code'] .svgs-props { display: none; }
+
+  /* Canvas */
+  body .svgs-viewport:focus:not(:focus-visible) { outline: none; }
+  body .svgs-viewport.is-drop { box-shadow: inset 0 0 0 3px var(--accent); }
+  body .svgs-viewport { position: relative; flex: 1; min-height: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-sunken); touch-action: none; user-select: none; -webkit-user-select: none; cursor: default; outline-offset: -2px; }
+  body .svgs-viewport.is-space { cursor: grab; }
+  body .svgs-viewport.is-panning { cursor: grabbing; }
+  body .svgs-viewport.is-space .svgs-host, body .svgs-viewport.is-panning .svgs-host { pointer-events: none; }
+  body .svgs-host { position: absolute; inset: 0; }
+  body .svgs-paper { position: absolute; box-shadow: 0 0 0 1px var(--border-strong), var(--shadow); pointer-events: none; }
+  body .svgs-paper[data-bg='checker'] { background-color: #fff; background-image: linear-gradient(45deg, #e5e5e5 25%, transparent 25%, transparent 75%, #e5e5e5 75%), linear-gradient(45deg, #e5e5e5 25%, transparent 25%, transparent 75%, #e5e5e5 75%); background-size: 16px 16px; background-position: 0 0, 8px 8px; }
+  body .svgs-paper[data-bg='white'] { background: #fff; }
+  body .svgs-paper[data-bg='dark'] { background: #18181b; }
+  body .svgs-grid { position: absolute; pointer-events: none; opacity: 0.6;
+    background-image: linear-gradient(to right, rgb(99 102 241 / 0.18) 1px, transparent 1px), linear-gradient(to bottom, rgb(99 102 241 / 0.18) 1px, transparent 1px), linear-gradient(to right, rgb(99 102 241 / 0.35) 1px, transparent 1px), linear-gradient(to bottom, rgb(99 102 241 / 0.35) 1px, transparent 1px); }
+  body .svgs-overlay { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; pointer-events: none; overflow: visible; }
+  body .svgs-ov-hover { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 4 3; opacity: 0.9; }
+  body .svgs-ov-sel { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+  body .svgs-ov-frame { fill: none; stroke: var(--accent); stroke-width: 1; stroke-dasharray: 6 4; }
+  body .svgs-ov-stem { stroke: var(--accent); stroke-width: 1.5; }
+  body .svgs-ov-marquee { fill: color-mix(in srgb, var(--accent) 12%, transparent); stroke: var(--accent); stroke-width: 1; }
+  body .svgs-handle { fill: #fff; stroke: var(--accent); stroke-width: 1.5; pointer-events: all; }
+  body .svgs-handle-rot { cursor: grab; fill: var(--accent); stroke: #fff; }
+  body .svgs-handle:hover { fill: var(--accent); }
+  body .svgs-status { display: flex; gap: 12px; justify-content: space-between; color: var(--text-muted); min-height: 20px; padding: 0 4px; white-space: nowrap; overflow: hidden; }
+  body .svgs-status > span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  body .svgs-status > span:first-child { flex: 0 1 auto; }
+  body .svgs-status > .svgs-hint { flex: 0 100 auto; }
+  body .svgs-status strong { color: var(--text); font-weight: 600; }
+
+  /* Layers */
+  body .svgs-layer { display: flex; align-items: center; gap: 4px; height: 30px; padding: 0 6px 0 calc(6px + var(--depth) * 12px); cursor: pointer; font-size: 0.85rem; border-left: 2px solid transparent; position: relative; color: var(--text); }
+  body .svgs-layer:hover { background: var(--bg-hover); }
+  body .svgs-layer.is-selected { background: var(--accent-soft); border-left-color: var(--accent); }
+  body .svgs-layer.is-selected .svgs-layer-name { color: var(--accent); font-weight: 600; }
+  body .svgs-layer.is-hidden .svgs-layer-name, body .svgs-layer.is-hidden .svgs-ico { opacity: 0.45; }
+  body .svgs-layer:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  body .svgs-ico { flex: none; color: var(--text-muted); }
+  body .svgs-twisty { appearance: none; border: 0; background: none; color: var(--text-muted); width: 16px; height: 16px; padding: 0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex: none; transition: transform 0.12s; }
+  body .svgs-twisty[hidden] { display: inline-flex !important; visibility: hidden; }
+  body .svgs-layer[aria-expanded='true'] > .svgs-twisty { transform: rotate(90deg); }
+  body .svgs-layer-name { flex: 1 1 auto; min-width: 24px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body .svgs-layer-name.is-anon { color: var(--text-muted); }
+  body .svgs-layer-tag { font-size: 0.7rem; color: var(--text-faint); font-family: var(--font-mono); }
+  body .svgs-layer-btn { appearance: none; border: 0; background: none; color: var(--text-faint); width: 22px; height: 24px; border-radius: 4px; display: none; align-items: center; justify-content: center; cursor: pointer; flex: none; padding: 0; }
+  body .svgs-layer:hover .svgs-layer-btn, body .svgs-layer.is-selected .svgs-layer-btn, body .svgs-layer-btn.is-on, body .svgs-layer-btn:focus-visible { display: inline-flex; }
+  body .svgs-layer:hover .svgs-layer-tag { display: none; }
+  body .svgs-layer-preview { color: var(--text-faint); font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 0 1 auto; max-width: 50%; }
+  body .svgs-layer-btn:hover { background: var(--bg-sunken); color: var(--text); }
+  body .svgs-layer-btn.is-on { color: var(--accent); }
+  body .svgs-layer-rename { height: 24px; padding: 0 6px; font-size: 0.8rem; flex: 1; min-width: 0; }
+  body .svgs-layer.drop-above::before, body .svgs-layer.drop-below::after { content: ''; position: absolute; left: 0; right: 0; height: 2px; background: var(--accent); }
+  body .svgs-layer.drop-above::before { top: 0; }
+  body .svgs-layer.drop-below::after { bottom: 0; }
+  body .svgs-layer.drop-inside { box-shadow: inset 0 0 0 2px var(--accent); }
+  body .svgs-empty { padding: 12px; margin: 0; }
+
+  /* Properties */
+  body .svgs-props { padding: 0 0 12px; }
+  body .svgs-sel-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg-elev); z-index: 1; }
+  body .svgs-sel-head strong { font-family: var(--font-mono); font-size: 0.85rem; white-space: nowrap; }
+  body .svgs-id { height: 28px; flex: 1; min-width: 0; font-size: 0.8rem; }
+  body .svgs-sec { padding: 10px 12px 4px; display: flex; flex-direction: column; gap: 8px; }
+  body .svgs-sec + .svgs-sec { border-top: 1px solid var(--border); }
+  body .svgs-sec p { margin: 0 0 6px; }
+  body .svgs-sec > .btn { align-self: flex-start; }
+  body .svgs-h { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); margin: 0; font-weight: 650; }
+  body .svgs-details > summary { cursor: pointer; list-style-position: inside; margin-bottom: 8px; }
+  body .svgs-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  body .svgs-field .label { margin: 0; display: flex; align-items: center; gap: 6px; }
+  body .svgs-field .label .badge { font-size: 0.65rem; padding: 0 5px; font-weight: 500; }
+  body .svgs-field .input, body .svgs-field .select { height: 30px; font-size: 0.82rem; }
+  body .svgs-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  body .svgs-color-row { display: flex; gap: 6px; align-items: center; }
+  body .svgs-color-row .input { flex: 1; min-width: 0; height: 30px; font-size: 0.82rem; }
+  body .svgs-color-row input[type='color'] { width: 30px; height: 30px; flex: none; }
+  body .svgs-color-row input[type='color'][data-empty] { opacity: 0.5; }
+  body .svgs-range-row { display: flex; gap: 8px; align-items: center; height: 30px; }
+  body .svgs-range-row output { min-width: 3.2em; text-align: right; }
+  body .svgs-gradient { display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--bg-sunken); border-radius: var(--radius-sm); }
+  body .svgs-stop { display: grid; grid-template-columns: 28px 1fr 64px; gap: 6px; }
+  body .svgs-stop input { height: 28px; font-size: 0.78rem; }
+  body .svgs-stop input[type='color'] { width: 28px; height: 28px; }
+  body .svgs-text { min-height: 56px; font-size: 0.9rem; }
+  body .svgs-long { min-height: 60px; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+  body .svgs-attrs { width: 100%; border-collapse: collapse; font-size: 0.8rem; table-layout: fixed; }
+  body .svgs-attrs th { text-align: left; font-weight: 500; color: var(--text-muted); width: 36%; padding: 2px 6px 2px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body .svgs-attrs td { padding: 2px 0; }
+  body .svgs-attrs td:last-child { width: 30px; }
+  body .svgs-attrs .input { height: 28px; font-size: 0.78rem; width: 100%; }
+  body .svgs-x { width: 28px; padding: 0; font-size: 1rem; }
+  body .svgs-add-attr { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; margin-top: 6px; }
+  body .svgs-add-attr .input { height: 28px; font-size: 0.78rem; min-width: 0; }
+  body .svgs-align { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+
+  /* Code */
+  body .svgs-code { display: flex; flex-direction: column; overflow: hidden; }
+  body .svgs-code-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  body .svgs-code-status { flex: 1; min-width: 0; }
+  body .svgs-code-status.is-error { color: var(--danger); }
+  body .svgs-editor { flex: 1; min-height: 0; display: flex; position: relative; }
+  body .svgs-gutter { flex: none; overflow: hidden; padding: 8px 6px 8px 8px; text-align: right; font-family: var(--font-mono); font-size: 12px; line-height: 1.55; color: var(--text-faint); background: var(--bg-sunken); user-select: none; min-width: 42px; }
+  body .svgs-gutter span { display: block; }
+  body .svgs-gutter span.is-error { color: var(--danger); background: var(--danger-soft); font-weight: 700; }
+  body .svgs-textarea { font-variant-ligatures: none; flex: 1; min-width: 0; border: 0; resize: none; padding: 8px 10px; font-size: 12px; line-height: 1.55; background: var(--bg-elev); color: var(--text); outline: none; overflow: auto; }
+  body .svgs-textarea:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+
+  /* Dialogs */
+  body .svgs-dialog { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-elev); color: var(--text); padding: 0; width: min(640px, calc(100vw - 24px)); max-height: calc(100vh - 32px); box-shadow: var(--shadow-lg); }
+  body .svgs-dialog-wide { width: min(820px, calc(100vw - 24px)); }
+  body .svgs-dialog::backdrop { background: rgb(0 0 0 / 0.45); }
+  body .svgs-dlg-inner { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+  body .svgs-dlg-head { display: flex; align-items: center; justify-content: space-between; }
+  body .svgs-dlg-head h2 { margin: 0; font-size: 1.15rem; }
+  body .svgs-dlg-inner p { margin: 0; }
+  body .svgs-dlg-foot { display: flex; gap: 8px; justify-content: flex-end; align-items: center; flex-wrap: wrap; }
+  body .svgs-pre { white-space: pre-wrap; font-family: var(--font-mono); font-size: 0.8rem; max-height: 160px; overflow: auto; }
+  body .svgs-candidates { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  body .svgs-cand { display: flex; flex-direction: column; gap: 4px; align-items: stretch; text-align: left; padding: 8px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--bg-elev); color: var(--text); cursor: pointer; font: inherit; }
+  body .svgs-cand:hover, body .svgs-cand:focus-visible { border-color: var(--accent); background: var(--accent-soft); }
+  body .svgs-cand img { width: 100%; height: 90px; object-fit: contain; background: #fff; border-radius: 6px; }
+  body .svgs-cand strong { font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body .svgs-cand span { font-size: 0.75rem; color: var(--text-muted); }
+  body .svgs-prompt summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+  body .svgs-prompt-text { white-space: pre-wrap; background: var(--bg-sunken); padding: 10px; border-radius: var(--radius-sm); font-size: 0.78rem; max-height: 200px; overflow: auto; margin: 8px 0; }
+  body .svgs-export-sec { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); }
+  body .svgs-export-sec h3 { margin: 0; font-size: 0.95rem; }
+
+  @media (max-width: 1480px) {
+    body .svgs-hide-md { display: none; }
+    body .svgs-toolbar [data-cmd='open'], body .svgs-toolbar [data-cmd='mermaid'] { width: 34px; padding: 0; }
+  }
+  /* Narrow screens: canvas on top, panels as tabs below. */
+  @media (max-width: 1000px) {
+    body .svgs-tabs { margin-top: 10px; }
+    body .svgs-main { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-template-areas: 'center' 'tabs' 'side'; }
+    body .svgs-center { height: clamp(300px, 52vh, 600px); }
+    body .svgs-main[data-tab='code'] { grid-template-columns: minmax(0, 1fr); }
+    body .svgs-tab-layers { display: inline-block; }
+    body .svgs-layers { grid-area: side; height: 420px; border-radius: 0 0 var(--radius) var(--radius); }
+    body .svgs-layers .panel-header { display: none; }
+    body .svgs-pane { height: 420px; }
+    body .svgs-main:not([data-tab='layers']) .svgs-layers { display: none; }
+    body .svgs-main[data-tab='layers'] .svgs-props { display: none; }
+  }
+  @media (max-width: 640px) {
+    body .svgs-hide-sm { display: none; }
+    /* One scrollable row: the main actions first, the rest reachable by swiping. */
+    body .svgs-toolbar { flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding: 6px; scrollbar-width: thin; }
+    body .svgs-tgroup { display: contents; }
+    body .svgs-tgroup > * { order: 6; flex: none; }
+    body .svgs-toolbar [data-cmd='paste-ai'] { order: 0; }
+    body .svgs-toolbar [data-cmd='export'] { order: 1; }
+    body .svgs-toolbar [data-cmd='copy-ai'] { order: 2; width: 34px; padding: 0; }
+    body .svgs-toolbar [data-cmd='open'] { order: 3; width: 34px; padding: 0; }
+    body .svgs-toolbar [data-cmd='mermaid'] { order: 4; width: 34px; padding: 0; }
+    body .svgs-sample { order: 5 !important; width: 104px; }
+    body .svgs-hint { display: none; }
+    body .svgs-layer-btn { display: inline-flex; }
+  }
+</style>
