@@ -17,12 +17,12 @@ export const categories: Category[] = ['Documents', 'Developer', 'Media', 'Data'
 
 export const tools: Tool[] = [
   {
-    slug: 'diagram-studio',
-    name: 'Diagram Studio',
-    tagline: 'Turn text or AI-generated Mermaid into flowcharts, sequence diagrams, mind maps and more. Export SVG/PNG.',
+    slug: 'svg-studio',
+    name: 'SVG Studio',
+    tagline: 'Paste SVG from any AI (or write Mermaid), then click, drag and restyle each part visually, with the code kept in sync. Export SVG or PNG.',
     category: 'Documents',
-    glyph: 'Dg',
-    keywords: ['mermaid', 'flowchart', 'diagram', 'sequence', 'mindmap', 'gantt', 'svg', 'ai'],
+    glyph: 'Sv',
+    keywords: ['svg', 'editor', 'vector', 'ai', 'mermaid', 'flowchart', 'diagram', 'layers', 'png', 'animation'],
   },
   {
     slug: 'pdf-toolkit',

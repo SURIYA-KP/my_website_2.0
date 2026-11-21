@@ -9,7 +9,7 @@ See [PRINCIPLES.md](./PRINCIPLES.md) for the ground rules every tool follows.
 
 | Category | Tool | What it does |
 | --- | --- | --- |
-| Documents | **Diagram Studio** | Mermaid editor for flowcharts, sequence diagrams, mind maps and more. Paste AI output directly; export SVG/PNG |
+| Documents | **SVG Studio** | Edit AI-generated SVG by component (select, drag, restyle, layers) with live code sync; Mermaid → diagram; export SVG/PNG |
 | Documents | **PDF Toolkit** | Merge, split, reorder, rotate and delete pages; images → PDF |
 | Developer | **JSON Studio** | Validate/format/repair JSON, tree explorer, JSON ↔ YAML ↔ CSV, JSON → TypeScript |
 | Developer | **Dev Toolkit** | Base64, URL, HTML entities, JWT, hashes, UUID v4/v7, timestamps, passwords, number bases |
