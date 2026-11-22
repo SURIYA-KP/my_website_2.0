@@ -3,7 +3,7 @@ import {
   type Item, History, newUid, moveTo, moveBy, rotate, remove, duplicate, insertAt, reverse, parseRanges, chunk, type RangeResult,
 } from './state';
 import { sniff, looksLikePdfName, prepareImage } from './files';
-import { registerPdf, requestThumb, cachedThumb, renderPage } from './thumbs';
+import { registerPdf, requestThumb, cachedThumb, renderPage, pdfjs } from './thumbs';
 import { setupDrag } from './drag';
 import type { PlanPage, BuildOptions } from './worker';
 
@@ -47,7 +47,7 @@ const I = {
 };
 
 // ---------------------------------------------------------------- state
-interface Source { id: string; name: string; kind: 'pdf' | 'image'; color: number; pages: number; url?: string }
+interface Source { id: string; name: string; kind: 'pdf' | 'image'; color: number; pages: number; size: number; url?: string }
 const sources = new Map<string, Source>();
 let items: Item[] = [];
 const sel = new Set<string>();
@@ -94,7 +94,10 @@ export function init() {
   function explain(name: string, err: any, kind: string | null): string {
     const code = err?.code;
     if (code === 'encrypted') {
-      return 'This PDF is encrypted (password-protected or restricted), so its pages cannot be copied here. Open it in a PDF viewer, enter the password, choose Print → Save as PDF to make an unlocked copy, then add that copy.';
+      const fix = 'To use it, open it in a PDF viewer (entering the password if asked), choose Print → Save as PDF to make an unencrypted copy, then add that copy here.';
+      return err?.password
+        ? `This PDF is password-protected. Its pages are encrypted and this tool cannot decrypt them in the browser, so it was not added. ${fix}`
+        : `This PDF is encrypted (it opens without a password but has owner restrictions). Its contents are scrambled, so copied pages would come out garbled; it was not added. ${fix}`;
     }
     if (code === 'corrupt') return 'This PDF appears to be damaged or incomplete and could not be read. Try re-downloading or re-saving it.';
     if (code === 'notpdf') return 'The file is named like a PDF but its contents are not a PDF. It may be damaged or saved in another format.';
@@ -112,16 +115,34 @@ export function init() {
     const id = `s${++srcSeq}`;
     if (kind === 'pdf') {
       const copy = buf.slice(0);
-      const info = await call<{ pages: { w: number; h: number }[] }>('addPdf', { id, bytes: copy }, [copy]);
+      let info: { pages: { w: number; h: number }[] };
+      try {
+        info = await call<{ pages: { w: number; h: number }[] }>('addPdf', { id, bytes: copy }, [copy]);
+      } catch (err: any) {
+        if (err?.code === 'encrypted') err.password = await needsPassword(buf);
+        throw err;
+      }
       registerPdf(id, buf);
-      const src: Source = { id, name: f.name, kind: 'pdf', color: colorSeq++ % 8, pages: info.pages.length };
+      const src: Source = { id, name: f.name, kind: 'pdf', color: colorSeq++ % 8, pages: info.pages.length, size: f.size };
       sources.set(id, src);
       return info.pages.map((p, i) => ({ uid: newUid(), src: id, page: i, rot: 0, w: p.w, h: p.h }));
     }
     const img = await prepareImage(buf, kind, f.type);
     await call('addImage', { id, bytes: img.bytes, mime: img.mime, w: img.w, h: img.h }, [img.bytes]);
-    sources.set(id, { id, name: f.name, kind: 'image', color: colorSeq++ % 8, pages: 1, url: img.url });
+    sources.set(id, { id, name: f.name, kind: 'image', color: colorSeq++ % 8, pages: 1, size: f.size, url: img.url });
     return [{ uid: newUid(), src: id, page: 0, rot: 0, w: img.w, h: img.h }];
+  }
+
+  /** Distinguish "needs a password" from "opens, but encrypted with owner restrictions". */
+  async function needsPassword(buf: ArrayBuffer): Promise<boolean> {
+    try {
+      const lib = await pdfjs();
+      const doc = await lib.getDocument({ data: new Uint8Array(buf.slice(0)), isEvalSupported: false, verbosity: 0 }).promise;
+      doc.destroy();
+      return false;
+    } catch (e: any) {
+      return e?.name === 'PasswordException';
+    }
   }
 
   async function addFiles(files: File[]) {
@@ -286,6 +307,12 @@ export function init() {
   on('pt-reverse', opReverse);
   on('pt-undo', undo);
   on('pt-redo', redo);
+  on('pt-m-export', () => {
+    const panel = $('pt-export');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $<HTMLButtonElement>('pt-merge').focus({ preventScroll: true });
+  });
+  $('pt-add-more').addEventListener('click', () => openPicker());
   on('pt-clear', () => {
     if (!items.length) return;
     commit([], 'Removed all pages');
@@ -433,7 +460,6 @@ export function init() {
   function updateChrome() {
     const n = items.length;
     root.classList.toggle('pt-has-pages', n > 0);
-    $('pt-empty').hidden = n > 0;
     const s = sel.size;
     $('pt-count').textContent = n ? (s ? `${s} of ${plural(n)} selected` : `${plural(n)}`) : 'No pages';
     const t = s > 0 || !!focusUid;
@@ -443,14 +469,19 @@ export function init() {
     $<HTMLButtonElement>('pt-reverse').title = s >= 2 ? 'Reverse the order of the selected pages' : 'Reverse the order of all pages';
     $<HTMLButtonElement>('pt-undo').disabled = !history.canUndo;
     $<HTMLButtonElement>('pt-redo').disabled = !history.canRedo;
-    // legend
+    // file list: every source that still has pages in the arrangement
     const counts = new Map<string, number>();
     for (const it of items) if (it.src) counts.set(it.src, (counts.get(it.src) ?? 0) + 1);
-    const legend = $('pt-legend');
-    legend.innerHTML = [...counts.keys()].map((id) => {
+    const blanks = items.filter((it) => !it.src).length;
+    const fileList = $('pt-files');
+    const fileHtml = [...counts.keys()].map((id) => {
       const s = sources.get(id)!;
-      return `<span class="pt-chip" style="--pt-c: var(--c${s.color + 1})"><button type="button" class="pt-chip-main" data-src="${id}" title="Select all pages from ${escapeHtml(s.name)}"><span class="pt-dot"></span><span class="pt-chip-name">${escapeHtml(s.name)}</span><span class="faint">${counts.get(id)}</span></button><button type="button" class="pt-chip-x" data-remove="${id}" aria-label="Remove pages from ${escapeHtml(s.name)}" title="Remove these pages">${I.x}</button></span>`;
-    }).join('');
+      const c = counts.get(id)!;
+      const pages = s.kind === 'image' ? (c === 1 ? 'image' : `image ×${c}`) : c === s.pages ? plural(c) : `${c} of ${plural(s.pages)}`;
+      return `<li class="pt-file" style="--pt-c: var(--c${s.color + 1})"><button type="button" class="pt-file-main" data-src="${id}" title="Select all pages from ${escapeHtml(s.name)}"><span class="pt-file-bar" aria-hidden="true"></span><span class="pt-file-text"><span class="pt-file-name">${escapeHtml(s.name)}</span><span class="pt-file-meta">${pages} · ${formatBytes(s.size)}</span></span></button><button type="button" class="btn btn-ghost btn-icon btn-sm pt-file-x" data-remove="${id}" aria-label="Remove ${escapeHtml(s.name)}" title="Remove this file's pages (undo with Ctrl+Z)">${I.x}</button></li>`;
+    }).join('') + (blanks ? `<li class="pt-file pt-file-blank" style="--pt-c: var(--text-faint)"><span class="pt-file-main"><span class="pt-file-bar" aria-hidden="true"></span><span class="pt-file-text"><span class="pt-file-name">Blank pages</span><span class="pt-file-meta">${plural(blanks)}</span></span></span></li>` : '');
+    if (fileList.dataset.html !== fileHtml) { fileList.innerHTML = fileHtml; fileList.dataset.html = fileHtml; }
+    $('pt-files-count').textContent = counts.size ? `${counts.size} file${counts.size === 1 ? '' : 's'}` : '';
     // outputs
     $<HTMLButtonElement>('pt-merge').disabled = busy || !n;
     $('pt-merge-count').textContent = n ? `(${plural(n)})` : '';
@@ -461,14 +492,14 @@ export function init() {
     $('pt-img-note').textContent = hasImages ? 'Used for the image pages in your document.' : 'Applies when you add JPG, PNG or WebP images.';
   }
 
-  $('pt-legend').addEventListener('click', (e) => {
+  $('pt-files').addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
     const rm = t.closest<HTMLElement>('[data-remove]');
     if (rm) {
       const id = rm.dataset.remove!;
       const uids = new Set(items.filter((i) => i.src === id).map((i) => i.uid));
-      commit(remove(items, uids), `Removed ${plural(uids.size)} from ${sources.get(id)?.name}`);
-      toast(`Removed ${plural(uids.size)} · Ctrl+Z to undo`);
+      commit(remove(items, uids), `Removed ${sources.get(id)?.name}`);
+      toast(`Removed ${sources.get(id)?.name} · Ctrl+Z to undo`);
       return;
     }
     const b = t.closest<HTMLElement>('[data-src]');
@@ -673,7 +704,7 @@ export function init() {
     previewUid = uid;
     stage.innerHTML = '';
     if (!dialog.open) dialog.showModal();
-    requestAnimationFrame(() => drawPreview());
+    drawPreview(); // header updates synchronously; the page canvas follows when rendered
   }
   function stepPreview(d: number) {
     const idx = items.findIndex((i) => i.uid === previewUid);

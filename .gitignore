@@ -5,3 +5,4 @@ test-results/
 tests/output/
 *.log
 .DS_Store
+tests/fixtures/pdf-toolkit/

@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 // PDF writing happens here (pdf-lib + fflate) so big documents never freeze the page.
-import { PDFDocument, PDFPage, PDFImage, degrees, rgb, StandardFonts, EncryptedPDFError } from 'pdf-lib';
+import { PDFDocument, PDFPage, PDFImage, PDFDict, PDFName, PDFNumber, degrees, rgb, StandardFonts, EncryptedPDFError } from 'pdf-lib';
 import { zipSync } from 'fflate';
 
 type Source =
@@ -30,13 +30,39 @@ function post(msg: unknown, transfer: Transferable[] = []) {
   (self as unknown as DedicatedWorkerGlobalScope).postMessage(msg, transfer);
 }
 
+/**
+ * pdf-lib cannot decrypt. Loading with ignoreEncryption only gives correct output when the
+ * "encryption" does not actually scramble anything: a V4/V5 security handler whose stream and
+ * string crypt filters are both /Identity. Anything else (RC4, AES) would copy scrambled
+ * streams into the output, so those files are refused.
+ */
+function encryptionIsIdentity(doc: PDFDocument): boolean {
+  const enc = doc.context.lookup(doc.context.trailerInfo.Encrypt);
+  if (!(enc instanceof PDFDict)) return false;
+  const v = enc.lookup(PDFName.of('V'));
+  if (!(v instanceof PDFNumber) || v.asNumber() < 4) return false;
+  const identity = (key: string) => {
+    const f = enc.lookup(PDFName.of(key));
+    return f instanceof PDFName && f.asString() === '/Identity';
+  };
+  // Absent StmF/StrF also default to /Identity per the spec.
+  const absentOrIdentity = (key: string) => !enc.has(PDFName.of(key)) || identity(key);
+  return absentOrIdentity('StmF') && absentOrIdentity('StrF') && absentOrIdentity('EFF');
+}
+
 async function addPdf(id: string, bytes: Uint8Array) {
   let doc: PDFDocument;
   try {
     doc = await PDFDocument.load(bytes, { updateMetadata: false });
   } catch (e) {
-    if (e instanceof EncryptedPDFError || /encrypt/i.test(String((e as Error)?.message))) throw new CodedError('encrypted', 'Encrypted PDF');
-    throw new CodedError('corrupt', (e as Error)?.message || 'Could not parse PDF');
+    if (e instanceof EncryptedPDFError || /encrypt/i.test(String((e as Error)?.message))) {
+      let lenient: PDFDocument | null = null;
+      try { lenient = await PDFDocument.load(bytes, { updateMetadata: false, ignoreEncryption: true }); } catch { /* fall through */ }
+      if (!lenient || !encryptionIsIdentity(lenient)) throw new CodedError('encrypted', 'Encrypted PDF');
+      doc = lenient;
+    } else {
+      throw new CodedError('corrupt', (e as Error)?.message || 'Could not parse PDF');
+    }
   }
   let pages: PDFPage[];
   try {

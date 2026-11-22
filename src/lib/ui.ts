@@ -49,6 +49,8 @@ export function toast(message: string, kind: 'info' | 'error' = 'info', ms = 220
   el.className = `toast${kind === 'error' ? ' toast-error' : ''}`;
   el.textContent = message;
   toastHost.appendChild(el);
+  // Keep at most 3 on screen so rapid actions don't build a tower of messages.
+  while (toastHost.children.length > 3) toastHost.firstElementChild?.remove();
   setTimeout(() => el.remove(), ms);
 }
 

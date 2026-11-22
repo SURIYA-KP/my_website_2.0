@@ -29,6 +29,7 @@ export const tools: Tool[] = [
   },
   {
     slug: 'pdf-toolkit',
+    ready: true,
     name: 'PDF Toolkit',
     tagline: 'Merge, split, reorder, rotate and delete pages, or turn images into a PDF.',
     category: 'Documents',

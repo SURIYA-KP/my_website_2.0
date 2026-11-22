@@ -1,6 +1,417 @@
 ---
 import ToolLayout from '../../layouts/ToolLayout.astro';
+
+const i = {
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  add: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/>',
+  upload: '<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>',
+  sample: '<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+  rotl: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  rotr: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
+  left: '<path d="m15 18-6-6 6-6"/>',
+  right: '<path d="m9 18 6-6-6-6"/>',
+  dup: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  blank: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+  reverse: '<path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/>',
+  del: '<path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
+  undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  redo: '<path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
+  download: '<path d="M12 3v12M7 10l5 5 5-5M4 19h16"/>',
+  extract: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3 3 3-3"/>',
+  zip: '<path d="M4 7V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2"/><path d="M10 3v2M10 7v2M10 11v2M8 15h4v4H8z"/>',
+  close: '<path d="M18 6 6 18M6 6l12 12"/>',
+  clear: '<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
+  cpu: '<rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9zM9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>',
+};
+const ico = (d: string, s = 17) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 ---
-<ToolLayout slug="pdf-toolkit">
-  <div class="card"><p class="muted">Coming soon.</p></div>
+<ToolLayout slug="pdf-toolkit" wide>
+  <div class="pt" id="pt-root">
+    <p class="pt-privacy" id="pt-privacy">
+      <Fragment set:html={ico(i.lock, 16)} />
+      <span><strong>Your files never leave this device.</strong> Pages are read, rearranged and written by your browser. Nothing is uploaded, so it is safe for contracts, statements and IDs.</span>
+    </p>
+
+    <section class="pt-empty" id="pt-empty" aria-label="Get started">
+      <div class="dropzone pt-drop" id="pt-drop" aria-label="Add PDF or image files: drop them here or press Enter to choose">
+        <span class="pt-drop-icon"><Fragment set:html={ico(i.upload, 30)} /></span>
+        <strong class="pt-drop-title">Drop PDFs or images here</strong>
+        <span class="pt-drop-sub">or <u>choose files</u> · PDF, JPG, PNG, WebP · add as many as you like</span>
+        <span class="pt-drop-over">Drop to add the pages</span>
+      </div>
+      <div class="pt-empty-side">
+        <button type="button" class="btn btn-lg pt-sample-btn" id="pt-sample"><Fragment set:html={ico(i.sample)} />Try with a sample PDF</button>
+        <ul class="pt-features">
+          <li><span><b>Merge</b> several PDFs and images into one document</span></li>
+          <li><span><b>Reorder</b> by dragging, <b>rotate</b>, <b>duplicate</b> or <b>delete</b> pages</span></li>
+          <li><span><b>Split</b> into parts or <b>extract</b> just the pages you need</span></li>
+          <li><span><b>Turn photos into a PDF</b> on A4, Letter or image-sized pages</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <div class="pt-work" id="pt-work">
+      <div class="pt-main">
+        <div class="pt-toolbar" role="toolbar" aria-label="Page actions">
+          <div class="pt-tgroup pt-tgroup-count">
+            <span class="pt-count" id="pt-count" aria-live="polite">No pages</span>
+          </div>
+          <div class="pt-tgroup pt-selgroup" role="group" aria-label="Select">
+            <span class="pt-tlabel">Select</span>
+            <button type="button" class="btn btn-sm btn-ghost" id="pt-sel-all" title="Select all (Ctrl+A)">All</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="pt-sel-none" title="Clear selection (Esc)">None</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="pt-sel-odd" title="Select pages 1, 3, 5…">Odd</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="pt-sel-even" title="Select pages 2, 4, 6…">Even</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="pt-sel-invert" title="Invert the selection">Invert</button>
+          </div>
+          <div class="pt-tgroup" role="group" aria-label="Edit pages">
+            <button type="button" class="btn btn-icon" id="pt-rotl" aria-label="Rotate left" title="Rotate left (Shift+R)"><Fragment set:html={ico(i.rotl)} /></button>
+            <button type="button" class="btn btn-icon" id="pt-rotr" aria-label="Rotate right" title="Rotate right (R)"><Fragment set:html={ico(i.rotr)} /></button>
+            <button type="button" class="btn btn-icon" id="pt-move-l" aria-label="Move earlier" title="Move earlier (Alt+←)"><Fragment set:html={ico(i.left)} /></button>
+            <button type="button" class="btn btn-icon" id="pt-move-r" aria-label="Move later" title="Move later (Alt+→)"><Fragment set:html={ico(i.right)} /></button>
+            <button type="button" class="btn btn-icon" id="pt-dup" aria-label="Duplicate" title="Duplicate (D)"><Fragment set:html={ico(i.dup)} /></button>
+            <button type="button" class="btn btn-icon btn-danger" id="pt-del" aria-label="Delete" title="Delete (Del)"><Fragment set:html={ico(i.del)} /></button>
+          </div>
+          <div class="pt-tgroup" role="group" aria-label="Arrange">
+            <button type="button" class="btn btn-icon" id="pt-blank" aria-label="Insert blank page" title="Insert a blank page after the selection (or at the end)"><Fragment set:html={ico(i.blank)} /></button>
+            <button type="button" class="btn btn-icon" id="pt-reverse" aria-label="Reverse order" title="Reverse page order"><Fragment set:html={ico(i.reverse)} /></button>
+          </div>
+          <div class="pt-tgroup" role="group" aria-label="History">
+            <button type="button" class="btn btn-icon" id="pt-undo" aria-label="Undo" title="Undo (Ctrl+Z)"><Fragment set:html={ico(i.undo)} /></button>
+            <button type="button" class="btn btn-icon" id="pt-redo" aria-label="Redo" title="Redo (Ctrl+Shift+Z)"><Fragment set:html={ico(i.redo)} /></button>
+          </div>
+          <div class="pt-tgroup pt-tgroup-end">
+            <button type="button" class="btn" id="pt-add" title="Add more PDFs or images (or drop them anywhere)"><Fragment set:html={ico(i.add)} /><span class="pt-hide-sm">Add files</span></button>
+            <button type="button" class="btn btn-ghost btn-icon" id="pt-clear" aria-label="Remove all pages" title="Remove all pages"><Fragment set:html={ico(i.clear)} /></button>
+            <button type="button" class="btn btn-primary pt-m-export" id="pt-m-export"><Fragment set:html={ico(i.download)} />Export</button>
+          </div>
+        </div>
+
+        <div class="alert alert-error pt-errors" id="pt-errors" role="alert" hidden></div>
+        <p class="pt-loading small" id="pt-loading" role="status" hidden></p>
+
+        <div class="pt-grid-wrap">
+          <div class="pt-grid" id="pt-grid" role="list" aria-label="Pages. Arrow keys move focus, Space selects, Alt+arrow moves the page, Enter opens a preview." aria-describedby="pt-hint"></div>
+          <div class="pt-indicator" id="pt-indicator" hidden aria-hidden="true"></div>
+        </div>
+        <p class="pt-hint small faint" id="pt-hint">
+          <span class="pt-hint-mouse">Click to select · Shift-click for a range · Ctrl/⌘-click to add · drag to reorder · double-click to preview.</span>
+          <span class="pt-hint-touch">Tap pages to select · use the arrows on a selected page to move it, or long-press and drag.</span>
+          <span class="pt-hint-keys">Keys: arrows, Space, Alt+arrows to move, R / Shift+R rotate, D duplicate, Del delete, Enter preview.</span>
+        </p>
+      </div>
+
+      <aside class="pt-side" aria-label="Files and export">
+        <section class="panel pt-panel">
+          <div class="panel-header"><span>Files <span class="faint small" id="pt-files-count"></span></span><button type="button" class="btn btn-sm btn-ghost" id="pt-add-more"><Fragment set:html={ico(i.add, 15)} />Add</button></div>
+          <ul class="pt-files" id="pt-files" aria-label="Source files"></ul>
+        </section>
+
+        <section class="panel pt-panel" id="pt-export" aria-labelledby="pt-export-h">
+          <div class="panel-header"><span id="pt-export-h">Export</span><span class="small faint">built on this device</span></div>
+          <div class="pt-export-body">
+            <div class="field">
+              <label class="label" for="pt-filename">File name</label>
+              <div class="pt-filename-row"><input class="input" id="pt-filename" value="document" autocomplete="off" spellcheck="false" /><span class="faint small">.pdf</span></div>
+            </div>
+            <button type="button" class="btn btn-primary btn-lg pt-wide" id="pt-merge"><Fragment set:html={ico(i.download)} />Download PDF <span class="pt-btn-count" id="pt-merge-count"></span></button>
+            <button type="button" class="btn pt-wide" id="pt-extract"><Fragment set:html={ico(i.extract)} />Extract selected <span class="pt-btn-count" id="pt-extract-count"></span></button>
+
+            <div class="pt-progress" id="pt-progress" hidden>
+              <div class="pt-progress-track" role="progressbar" aria-label="Export progress"><span></span></div>
+              <span class="small muted" id="pt-progress-label"></span>
+            </div>
+            <div id="pt-result" aria-live="polite"></div>
+
+            <fieldset class="pt-fieldset">
+              <legend>Split into several PDFs</legend>
+              <div class="btn-group pt-split-modes" role="group" aria-label="Split mode">
+                <button type="button" class="btn btn-sm" data-split="every" aria-pressed="true">Every N pages</button>
+                <button type="button" class="btn btn-sm" data-split="ranges" aria-pressed="false">Ranges</button>
+                <button type="button" class="btn btn-sm" data-split="single" aria-pressed="false">Each page</button>
+              </div>
+              <div class="pt-split-row" id="pt-split-every">
+                <label class="small" for="pt-split-n">Pages per file</label>
+                <input class="input pt-num-input" id="pt-split-n" type="number" min="1" step="1" value="2" inputmode="numeric" />
+              </div>
+              <div class="field" id="pt-split-ranges" hidden>
+                <label class="label" for="pt-ranges">Page ranges (one PDF each)</label>
+                <input class="input mono" id="pt-ranges" placeholder="1-3, 5, 8-10" autocomplete="off" spellcheck="false" aria-describedby="pt-split-preview" />
+              </div>
+              <p class="pt-split-preview small" id="pt-split-preview" aria-live="polite"></p>
+              <button type="button" class="btn pt-wide" id="pt-split-go"><Fragment set:html={ico(i.zip)} />Download ZIP</button>
+            </fieldset>
+
+            <details class="pt-details">
+              <summary>Image pages</summary>
+              <div class="pt-details-body">
+                <p class="small faint" id="pt-img-note"></p>
+                <div class="pt-two">
+                  <div class="field">
+                    <label class="label" for="pt-imgsize">Page size</label>
+                    <select class="select" id="pt-imgsize">
+                      <option value="fit">Fit to image</option>
+                      <option value="a4">A4</option>
+                      <option value="letter">US Letter</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label class="label" for="pt-margin">Margin</label>
+                    <select class="select" id="pt-margin">
+                      <option value="0">None</option>
+                      <option value="5">Small (5 mm)</option>
+                      <option value="10" selected>Medium (10 mm)</option>
+                      <option value="20">Large (20 mm)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            <details class="pt-details">
+              <summary>Document properties</summary>
+              <div class="pt-details-body">
+                <div class="field">
+                  <label class="label" for="pt-title">Title</label>
+                  <input class="input" id="pt-title" placeholder="Optional" autocomplete="off" />
+                </div>
+                <div class="field">
+                  <label class="label" for="pt-author">Author</label>
+                  <input class="input" id="pt-author" placeholder="Optional" autocomplete="off" />
+                </div>
+              </div>
+            </details>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <p class="sr-only" id="pt-live" aria-live="polite"></p>
+
+    <dialog class="pt-preview" id="pt-preview" aria-labelledby="pt-pv-title">
+      <div class="pt-pv-head">
+        <div class="grow">
+          <strong id="pt-pv-title">Page</strong>
+          <span class="pt-pv-sub small muted" id="pt-pv-sub"></span>
+        </div>
+        <button type="button" class="btn btn-icon" id="pt-pv-rotl" aria-label="Rotate left" title="Rotate left"><Fragment set:html={ico(i.rotl)} /></button>
+        <button type="button" class="btn btn-icon" id="pt-pv-rotr" aria-label="Rotate right" title="Rotate right"><Fragment set:html={ico(i.rotr)} /></button>
+        <button type="button" class="btn btn-icon btn-ghost" id="pt-pv-close" aria-label="Close preview" title="Close (Esc)"><Fragment set:html={ico(i.close)} /></button>
+      </div>
+      <div class="pt-pv-body">
+        <button type="button" class="btn btn-icon pt-pv-nav" id="pt-pv-prev" aria-label="Previous page" title="Previous (←)"><Fragment set:html={ico(i.left, 20)} /></button>
+        <div class="pt-pv-stage" id="pt-pv-stage"></div>
+        <button type="button" class="btn btn-icon pt-pv-nav" id="pt-pv-next" aria-label="Next page" title="Next (→)"><Fragment set:html={ico(i.right, 20)} /></button>
+      </div>
+    </dialog>
+  </div>
 </ToolLayout>
+
+<script>
+  import { init } from '../../tools/pdf-toolkit/main';
+  init();
+</script>
+
+<style is:global>
+  .pt { display: flex; flex-direction: column; gap: 12px; }
+  .pt-privacy { display: flex; gap: 10px; align-items: flex-start; margin: 0; padding: 10px 14px; border-radius: var(--radius); background: var(--success-soft); color: var(--text); font-size: 0.875rem; line-height: 1.45; border: 1px solid color-mix(in srgb, var(--success) 25%, transparent); }
+  .pt-privacy svg { flex: none; color: var(--success); margin-top: 2px; }
+  .pt-privacy strong { color: var(--success); }
+
+  /* ---------- Empty state ---------- */
+  .pt-empty { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 16px; align-items: stretch; }
+  .pt-drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 280px; padding: 32px 20px; text-align: center; cursor: pointer; }
+  .pt-drop:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .pt-drop-icon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); margin-bottom: 4px; }
+  .pt-drop-title { font-size: 1.15rem; }
+  .pt-drop-sub { color: var(--text-muted); font-size: 0.9rem; }
+  .pt-drop-sub u { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .pt-drop-over { display: none; font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+  .pt-empty-side { display: flex; flex-direction: column; gap: 14px; justify-content: center; padding: 20px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+  .pt-sample-btn { align-self: flex-start; gap: 8px; border-color: var(--accent); color: var(--accent); }
+  .pt-sample-btn:hover { background: var(--accent-soft); }
+  .pt-features { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; color: var(--text-muted); }
+  .pt-features li { display: flex; gap: 8px; align-items: baseline; }
+  .pt-features li::before { content: ''; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); transform: translateY(-2px); }
+  .pt-features b { color: var(--text); font-weight: 600; }
+
+  /* With pages loaded, the empty state disappears and the dropzone becomes a page-wide overlay while dragging files in. */
+  .pt-has-pages .pt-empty { display: contents; }
+  .pt-has-pages .pt-empty-side { display: none; }
+  .pt-has-pages .pt-drop:not(.is-dragover) { display: none; }
+  .pt-has-pages .pt-drop.is-dragover { position: fixed; inset: 12px; z-index: 200; min-height: 0; border-width: 3px; background: color-mix(in srgb, var(--accent-soft) 92%, transparent); backdrop-filter: blur(3px); }
+  .pt-has-pages .pt-drop.is-dragover > :not(.pt-drop-over, .pt-drop-icon) { display: none; }
+  .pt-has-pages .pt-drop.is-dragover .pt-drop-over { display: block; }
+  .pt:not(.pt-has-pages) .pt-work { display: none; }
+
+  /* ---------- Workspace ---------- */
+  .pt-work { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; align-items: start; }
+  .pt-main { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+  .pt-toolbar { position: sticky; top: calc(var(--header-h) + 8px); z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 6px 8px; background: color-mix(in srgb, var(--bg-elev) 94%, transparent); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+  .pt-tgroup { display: flex; align-items: center; gap: 3px; }
+  .pt-tgroup + .pt-tgroup { padding-left: 8px; border-left: 1px solid var(--border); }
+  .pt-tgroup-end { margin-left: auto; gap: 6px; }
+  .pt-tgroup-count { min-width: 112px; }
+  .pt-count { font-size: 0.85rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pt-tlabel { font-size: 0.75rem; color: var(--text-faint); margin-right: 2px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .pt-toolbar .btn-icon { width: 32px; height: 32px; }
+  .pt-toolbar .btn { gap: 6px; }
+  .pt-m-export { display: none; }
+  .pt-errors ul { margin: 6px 0 0; padding-left: 18px; }
+  .pt-errors li + li { margin-top: 4px; }
+  .pt-errors b { word-break: break-word; }
+  .pt-errors .row-between strong { color: inherit; }
+  .pt-loading { margin: 0; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+  .pt-loading::before { content: ''; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--accent); animation: pt-spin 0.8s linear infinite; }
+
+  .pt-grid-wrap { position: relative; }
+  .pt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; padding: 14px; min-height: 240px; background: var(--bg-sunken); border: 1px solid var(--border); border-radius: var(--radius-lg); align-content: start; }
+  .pt-indicator { position: absolute; left: 0; top: 0; width: 4px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); pointer-events: none; z-index: 5; }
+  .pt-hint { margin: 0; line-height: 1.6; }
+  .pt-hint > span { display: block; }
+  .pt-hint-touch { display: none !important; }
+  @media (hover: none) and (pointer: coarse) {
+    .pt-hint-touch { display: block !important; }
+    .pt-hint-mouse, .pt-hint-keys { display: none !important; }
+  }
+
+  /* Tiles */
+  .pt-tile { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 6px; border-radius: var(--radius); border: 2px solid transparent; background: transparent; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; outline: none; transition: background 0.12s, border-color 0.12s, opacity 0.15s; content-visibility: auto; contain-intrinsic-size: auto 230px; }
+  .pt-tile:hover { background: var(--bg-hover); }
+  .pt-tile:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+  .pt-tile.is-selected { background: var(--accent-soft); border-color: var(--accent); }
+  .pt-tile.pt-dragging { opacity: 0.35; }
+  .pt-tile.pt-pressing { transform: scale(0.97); transition: transform 0.3s; }
+  .pt-thumb { position: relative; aspect-ratio: 0.78; }
+  .pt-page { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / 0.08), 0 2px 8px rgb(0 0 0 / 0.12); overflow: hidden; border-top: 3px solid var(--pt-c); transition: width 0.18s, height 0.18s; }
+  .pt-face { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: grid; place-items: center; transition: transform 0.2s ease; }
+  .pt-face img { width: 100%; height: 100%; object-fit: fill; display: block; pointer-events: none; }
+  .pt-face-blank span, .pt-face-error span { font-size: 0.75rem; color: #8b8b83; }
+  .pt-face-blank { background: repeating-linear-gradient(135deg, #fff 0 10px, #f6f6f3 10px 20px); }
+  .pt-spin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #ddd; border-top-color: #999; animation: pt-spin 0.8s linear infinite; }
+  @keyframes pt-spin { to { transform: rotate(360deg); } }
+  .pt-num { position: absolute; left: 50%; transform: translateX(-50%); bottom: 3px; min-width: 24px; height: 22px; padding: 0 6px; display: grid; place-items: center; border-radius: 11px; font-size: 0.75rem; font-weight: 700; font-variant-numeric: tabular-nums; background: var(--text); color: var(--bg-elev); box-shadow: var(--shadow-sm); z-index: 2; }
+  .pt-tile.is-selected .pt-num { background: var(--accent); color: var(--accent-text); }
+  .pt-check { position: absolute; top: 2px; left: 2px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; padding: 0; border: 2px solid var(--border-strong); background: var(--bg-elev); color: transparent; cursor: pointer; opacity: 0; transition: opacity 0.12s; z-index: 2; }
+  .pt-tile:hover .pt-check, .pt-tile.is-selected .pt-check, .pt-tile:focus-within .pt-check { opacity: 1; }
+  .pt-tile.is-selected .pt-check { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .pt-check svg { width: 14px; height: 14px; stroke-width: 3; }
+  .pt-acts { position: absolute; right: 2px; top: 2px; display: flex; flex-direction: column; gap: 2px; opacity: 0; transition: opacity 0.12s; z-index: 2; }
+  .pt-acts button, .pt-nudge { width: 26px; height: 26px; padding: 0; display: grid; place-items: center; border-radius: 7px; border: 1px solid var(--border); background: var(--bg-elev); color: var(--text); cursor: pointer; box-shadow: var(--shadow-sm); }
+  .pt-acts button:hover, .pt-nudge:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  .pt-acts .pt-act-del:hover { background: var(--danger-soft); color: var(--danger); border-color: var(--danger); }
+  .pt-nudge { position: absolute; bottom: 2px; opacity: 0; z-index: 2; }
+  .pt-nudge-l { left: 2px; }
+  .pt-nudge-r { right: 2px; }
+  .pt-tile:hover .pt-acts, .pt-tile:focus-within .pt-acts { opacity: 1; }
+  .pt-tile:hover .pt-nudge, .pt-tile.is-selected .pt-nudge, .pt-tile:focus-within .pt-nudge { opacity: 1; }
+  .pt-drag-active .pt-acts, .pt-drag-active .pt-nudge, .pt-drag-active .pt-check { opacity: 0 !important; }
+  @media (hover: none) {
+    .pt-tile.is-selected .pt-acts { opacity: 1; }
+    .pt-tile:not(.is-selected) .pt-acts, .pt-tile:not(.is-selected) .pt-nudge { visibility: hidden; }
+    .pt-check { opacity: 1; }
+    .pt-acts button, .pt-nudge { width: 32px; height: 32px; }
+    .pt-acts [data-act='zoom'], .pt-acts [data-act='dup'] { display: none; }
+  }
+  .pt-foot { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; min-width: 0; color: var(--text-muted); }
+  .pt-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--pt-c); }
+  .pt-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pt-pg { flex: none; font-variant-numeric: tabular-nums; color: var(--text-faint); }
+
+  .pt-ghost { position: fixed; left: 0; top: 0; z-index: 300; width: 68px; height: 88px; pointer-events: none; background: #fff; border-radius: 4px; box-shadow: var(--shadow-lg), 0 0 0 2px var(--accent); overflow: visible; transform-origin: 0 0; }
+  .pt-ghost img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: 4px; }
+  .pt-ghost span { display: block; width: 100%; height: 100%; background: repeating-linear-gradient(135deg, #fff 0 8px, #f2f2ef 8px 16px); border-radius: 4px; }
+  .pt-ghost b { position: absolute; right: -10px; top: -10px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 12px; display: grid; place-items: center; background: var(--accent); color: var(--accent-text); font-size: 0.8rem; }
+  .pt-drag-active, .pt-drag-active * { cursor: grabbing !important; }
+
+  /* ---------- Sidebar ---------- */
+  .pt-side { position: sticky; top: calc(var(--header-h) + 8px); display: flex; flex-direction: column; gap: 12px; max-height: calc(100vh - var(--header-h) - 16px); overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  .pt-panel { flex: none; }
+  .pt-panel .panel-header .btn { gap: 4px; }
+  .pt-files { list-style: none; margin: 0; padding: 4px; max-height: 240px; overflow: auto; }
+  .pt-files:empty::after { content: 'No files yet'; display: block; padding: 8px; color: var(--text-faint); font-size: 0.85rem; }
+  .pt-file { display: flex; align-items: center; gap: 2px; border-radius: var(--radius-sm); }
+  .pt-file:hover { background: var(--bg-hover); }
+  .pt-file-main { flex: 1; min-width: 0; display: flex; align-items: stretch; gap: 10px; padding: 6px 8px; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: var(--radius-sm); }
+  .pt-file-blank .pt-file-main { cursor: default; }
+  .pt-file-bar { flex: none; width: 4px; border-radius: 2px; background: var(--pt-c); }
+  .pt-file-text { display: flex; flex-direction: column; min-width: 0; }
+  .pt-file-name { font-size: 0.85rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pt-file-meta { font-size: 0.75rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .pt-file-x { flex: none; color: var(--text-faint); }
+  .pt-file-x:hover { color: var(--danger); }
+  .pt-export-body { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .pt-filename-row { display: flex; align-items: center; gap: 6px; }
+  .pt-filename-row .input { flex: 1; min-width: 0; }
+  .pt-wide { width: 100%; justify-content: center; gap: 8px; }
+  .pt-btn-count { font-weight: 400; opacity: 0.8; }
+  .pt-progress { display: flex; flex-direction: column; gap: 4px; }
+  .pt-progress-track { height: 6px; border-radius: 3px; background: var(--bg-sunken); overflow: hidden; }
+  .pt-progress-track span { display: block; height: 100%; width: 4%; background: var(--accent); border-radius: 3px; transition: width 0.2s; }
+  .pt-result-card { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--success-soft); border: 1px solid color-mix(in srgb, var(--success) 25%, transparent); }
+  .pt-result-name { font-size: 0.85rem; font-weight: 600; color: var(--success); word-break: break-all; }
+  .pt-result-card b { color: var(--text); }
+  .pt-fieldset { margin: 4px 0 0; padding: 10px 0 0; border: 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .pt-fieldset legend { padding: 0 6px 0 0; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+  .pt-split-modes { display: flex; }
+  .pt-split-modes .btn { flex: 1; padding: 0 4px; }
+  .pt-split-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .pt-num-input { width: 84px; }
+  .pt-split-preview { margin: 0; color: var(--text-muted); overflow-wrap: anywhere; }
+  .pt-split-preview.is-error { color: var(--danger); }
+  .pt-ranges-input[aria-invalid='true'], #pt-ranges[aria-invalid='true'] { border-color: var(--danger); }
+  .pt-details { border-top: 1px solid var(--border); padding-top: 8px; }
+  .pt-details summary { cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); padding: 2px 0; }
+  .pt-details summary:hover { color: var(--text); }
+  .pt-details-body { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; }
+  .pt-details-body p { margin: 0; }
+  .pt-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  /* ---------- Preview dialog ---------- */
+  .pt-preview { width: min(980px, calc(100vw - 24px)); height: min(900px, calc(100vh - 24px)); max-width: none; max-height: none; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-elev); color: var(--text); box-shadow: var(--shadow-lg); }
+  .pt-preview[open] { display: flex; flex-direction: column; }
+  .pt-preview::backdrop { background: rgb(0 0 0 / 0.55); backdrop-filter: blur(2px); }
+  .pt-pv-head { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .pt-pv-head .grow { display: flex; flex-direction: column; min-width: 0; }
+  .pt-pv-sub { display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pt-pv-sub::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--pt-c); }
+  .pt-pv-body { flex: 1; min-height: 0; display: flex; align-items: center; gap: 6px; padding: 8px; background: var(--bg-sunken); }
+  .pt-pv-stage { flex: 1; align-self: stretch; min-width: 0; display: grid; place-items: center; overflow: hidden; }
+  .pt-pv-page, .pt-pv-box { box-shadow: 0 0 0 1px rgb(0 0 0 / 0.08), var(--shadow); background: #fff; }
+  .pt-pv-box { position: relative; overflow: hidden; }
+  .pt-pv-face { position: absolute; left: 50%; top: 50%; display: grid; place-items: center; }
+  .pt-pv-nav { flex: none; width: 40px; height: 40px; border-radius: 50%; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 1500px) {
+    .pt-selgroup .pt-tlabel { display: none; }
+    .pt-tgroup-count { min-width: 0; }
+  }
+  @media (max-width: 1100px) {
+    .pt-work { grid-template-columns: minmax(0, 1fr) 280px; }
+  }
+  @media (max-width: 860px) {
+    .pt-empty { grid-template-columns: 1fr; }
+    .pt-drop { min-height: 220px; }
+    .pt-work { grid-template-columns: 1fr; }
+    .pt-side { position: static; max-height: none; overflow: visible; }
+    .pt-m-export { display: inline-flex; }
+    /* Mobile action bar: pinned to the bottom of the screen, scrolls sideways if needed. */
+    .pt-has-pages { padding-bottom: 72px; }
+    body:has(.pt-has-pages) .toast-host { bottom: 84px; }
+    .pt-toolbar { position: fixed; top: auto; left: 0; right: 0; bottom: 0; z-index: 60; flex-wrap: nowrap; overflow-x: auto; border-radius: 0; border-width: 1px 0 0; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 20px rgb(0 0 0 / 0.08); scrollbar-width: none; }
+    .pt-toolbar::-webkit-scrollbar { display: none; }
+    .pt-tgroup { flex: none; }
+    .pt-tgroup-count { min-width: 0; }
+    .pt-toolbar .btn-icon { width: 38px; height: 38px; }
+    .pt-toolbar .btn-sm { height: 34px; }
+    .pt-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 10px; }
+  }
+  @media (max-width: 640px) {
+    .pt-hide-sm { display: none; }
+    .pt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pt-privacy { font-size: 0.8rem; }
+    .pt-preview { width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; border: 0; }
+    .pt-pv-nav { width: 34px; height: 34px; }
+  }
+</style>
