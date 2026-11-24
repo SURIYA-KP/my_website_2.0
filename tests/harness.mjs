@@ -21,7 +21,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export { assert };
-export const BASE_URL = process.env.BASE_URL || 'http://localhost:4321';
+// Includes the Astro `base` path from astro.config.mjs.
+export const BASE_URL = (process.env.BASE_URL || 'http://localhost:4321/my_website_2.0').replace(/\/+$/, '');
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const OUT_DIR = path.join(here, 'output');
 export const FIXTURES = path.join(here, 'fixtures');

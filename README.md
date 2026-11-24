@@ -23,10 +23,21 @@ See [PRINCIPLES.md](./PRINCIPLES.md) for the ground rules every tool follows.
 
 ```bash
 npm install
-npm run dev          # http://localhost:4321/tools/
+npm run dev          # http://localhost:4321/my_website_2.0/tools/
 npm run build        # static output in dist/
-npm run preview      # serve dist/ on http://localhost:4321
+npm run preview      # serve dist/ on http://localhost:4321/my_website_2.0/
 ```
+
+## Deploy (GitHub Pages)
+
+The site is configured for **https://suriya-kp.github.io/my_website_2.0/** (`site` and `base` in `astro.config.mjs`).
+
+1. In the repo on GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions** (one time).
+2. Push to `main`. `.github/workflows/deploy.yml` builds the site and publishes it. You can also run it by hand
+   from the Actions tab ("Deploy to GitHub Pages" → Run workflow).
+
+Internal links must go through `url()` from `src/lib/paths.ts` so they include the `/my_website_2.0` base.
+If you later move to a custom domain or a `<user>.github.io` repo, set `base: '/'` in `astro.config.mjs`.
 
 ### Tests
 
@@ -36,7 +47,7 @@ storage** (localStorage, sessionStorage, IndexedDB, cookies).
 
 ```bash
 npm run build && npm run preview &   # or npm run dev
-npm test                             # all tools
+npm test                             # all tools (BASE_URL defaults to http://localhost:4321/my_website_2.0)
 node tests/json-studio.test.mjs      # one tool
 ```
 
@@ -53,7 +64,7 @@ The tools are self-contained. To move them into another Astro project:
 3. Wrap `src/layouts/Base.astro` in your own site layout, or replace its header/footer with yours. Keep the
    Content-Security-Policy `<meta>` tag: it is what guarantees no data leaves the browser.
    If your site needs third-party scripts (analytics etc.), don't add them to tool pages.
-4. Tools are served under `/tools/<slug>/`, and the hub at `/tools/`.
+4. Tools are served under `<base>/tools/<slug>/`, and the hub at `<base>/tools/`.
 
 ## Add a new tool
 

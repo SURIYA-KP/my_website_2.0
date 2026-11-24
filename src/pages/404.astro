@@ -1,0 +1,11 @@
+---
+import Base from '../layouts/Base.astro';
+import { url } from '../lib/paths';
+---
+<Base title="Page not found · Browser Tools">
+  <main class="container" style="padding: 64px 16px; max-width: 640px;">
+    <h1>Page not found</h1>
+    <p class="muted">This page doesn't exist. It may have moved.</p>
+    <a class="btn btn-primary" href={url('tools/')}>Browse all tools</a>
+  </main>
+</Base>

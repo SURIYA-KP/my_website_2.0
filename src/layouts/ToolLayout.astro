@@ -1,6 +1,7 @@
 ---
 import Base from './Base.astro';
 import { toolBySlug } from '../data/tools';
+import { url } from '../lib/paths';
 
 interface Props {
   slug: string;
@@ -14,7 +15,7 @@ const tool = toolBySlug(slug);
 <Base title={`${tool.name} · Browser Tools`} description={tool.tagline} allowEval={allowEval}>
   <main class="tool-page" data-tool={slug}>
     <div class="container tool-hero" style={wide ? 'max-width:none' : undefined}>
-      <a class="small muted back-link" href="/tools/">← All tools</a>
+      <a class="small muted back-link" href={url('tools/')}>← All tools</a>
       <div class="row-between">
         <div class="grow">
           <h1>{tool.name}</h1>

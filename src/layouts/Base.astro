@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import { url } from '../lib/paths';
 
 interface Props {
   title: string;
@@ -40,7 +41,7 @@ const csp = [
   <body>
     <header class="site-header">
       <div class="container site-header-inner">
-        <a class="brand" href="/tools/">
+        <a class="brand" href={url('tools/')}>
           <span class="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 32 32" width="22" height="22"><rect width="32" height="32" rx="8" fill="currentColor"/><path d="M9 11l5 5-5 5M16 21h7" stroke="var(--bg-elev)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </span>

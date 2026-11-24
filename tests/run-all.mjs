@@ -1,4 +1,4 @@
-// Runs every tests/*.test.mjs sequentially against BASE_URL (default http://localhost:4321).
+// Runs every tests/*.test.mjs sequentially against BASE_URL (default http://localhost:4321/my_website_2.0).
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';

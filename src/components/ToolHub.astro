@@ -1,5 +1,6 @@
 ---
 import { readyTools as tools, categories } from '../data/tools';
+import { url } from '../lib/paths';
 ---
 <main class="container hub">
   <section class="hub-hero">
@@ -20,7 +21,7 @@ import { readyTools as tools, categories } from '../data/tools';
         <h2 class="hub-cat">{cat}</h2>
         <div class="hub-grid">
           {list.map((t, i) => (
-            <a class="tool-card" href={`/tools/${t.slug}/`} data-search={`${t.name} ${t.tagline} ${t.keywords.join(' ')}`.toLowerCase()}>
+            <a class="tool-card" href={url(`tools/${t.slug}/`)} data-search={`${t.name} ${t.tagline} ${t.keywords.join(' ')}`.toLowerCase()}>
               <span class="tool-glyph" style={`--hue: var(--c${(categories.indexOf(cat) % 8) + 1})`}>{t.glyph}</span>
               <span class="tool-card-text">
                 <span class="tool-card-name">{t.name}</span>
