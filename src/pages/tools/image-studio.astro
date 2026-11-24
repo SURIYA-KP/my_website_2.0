@@ -1,6 +1,368 @@
 ---
 import ToolLayout from '../../layouts/ToolLayout.astro';
+
+const i = {
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  upload: '<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>',
+  sample: '<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+  add: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/>',
+  zip: '<path d="M4 7V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2"/><path d="M10 3v2M10 7v2M10 11v2M8 15h4v4H8z"/>',
+  clear: '<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
+  close: '<path d="M18 6 6 18M6 6l12 12"/>',
+  sliders: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+  zin: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M11 8v6M8 11h6"/>',
+  zout: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M8 11h6"/>',
+  fit: '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>',
+  rotl: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  rotr: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
+  fliph: '<path d="M12 3v18"/><path d="M8 7 3 12l5 5V7zM16 7l5 5-5 5V7z"/>',
+  flipv: '<path d="M3 12h18"/><path d="M7 8l5-5 5 5H7zM7 16l5 5 5-5H7z"/>',
+  reset: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+};
+const ico = (d: string, s = 17) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 ---
-<ToolLayout slug="image-studio">
-  <div class="card"><p class="muted">Coming soon.</p></div>
+<ToolLayout slug="image-studio" wide>
+  <div class="is" id="is-root">
+    <p class="is-privacy" id="is-privacy">
+      <Fragment set:html={ico(i.lock, 16)} />
+      <span><strong>Your files never leave this device.</strong> Images are decoded and re-encoded by your browser; nothing is uploaded. Converted files contain no EXIF, GPS or camera data.</span>
+    </p>
+
+    <section class="is-empty" id="is-empty" aria-label="Get started">
+      <div class="dropzone is-drop" id="is-drop" aria-label="Add images: drop them here or press Enter to choose">
+        <span class="is-drop-icon"><Fragment set:html={ico(i.upload, 30)} /></span>
+        <strong class="is-drop-title">Drop images here</strong>
+        <span class="is-drop-sub">or <u>choose files</u> · JPEG, PNG, WebP, GIF, BMP, AVIF, SVG · or paste with <kbd>Ctrl</kbd>+<kbd>V</kbd></span>
+        <span class="is-drop-over">Drop to add the images</span>
+      </div>
+      <div class="is-empty-side">
+        <button type="button" class="btn btn-lg is-sample-btn" id="is-sample"><Fragment set:html={ico(i.sample)} />Try with sample images</button>
+        <ul class="is-features">
+          <li><span><b>Compress</b> photos and graphics, or hit a <b>target file size</b></span></li>
+          <li><span><b>Convert</b> to JPEG, PNG or WebP and <b>resize</b> in one go</span></li>
+          <li><span><b>Strip metadata</b>: see what's hidden (like GPS) before you share</span></li>
+          <li><span><b>Compare</b> before and after, <b>crop</b>, <b>rotate</b> and <b>flip</b></span></li>
+        </ul>
+      </div>
+    </section>
+
+    <div class="is-work" id="is-work">
+      <div class="is-main">
+        <div class="is-toolbar" role="toolbar" aria-label="Image actions">
+          <div class="is-count-wrap">
+            <span class="is-count" id="is-count" aria-live="polite">No images</span>
+            <span class="is-busy small" id="is-busy" hidden></span>
+          </div>
+          <div class="is-tb-end">
+            <button type="button" class="btn" id="is-add" title="Add more images (or drop / paste them anywhere)"><Fragment set:html={ico(i.add)} /><span class="is-hide-sm">Add images</span></button>
+            <button type="button" class="btn btn-ghost btn-icon" id="is-clear" aria-label="Remove all images" title="Remove all images"><Fragment set:html={ico(i.clear)} /></button>
+            <button type="button" class="btn btn-primary" id="is-zip"><Fragment set:html={ico(i.zip)} /><span id="is-zip-label">Download all (ZIP)</span></button>
+          </div>
+        </div>
+
+        <div class="is-totals" id="is-totals" aria-live="polite"></div>
+        <div class="is-gps-alert" id="is-gps-alert" role="note" hidden></div>
+
+        <ul class="is-list" id="is-list" aria-label="Images"></ul>
+      </div>
+
+      <aside class="is-side" aria-label="Settings">
+        <details class="panel is-settings" id="is-settings-panel" open>
+          <summary class="panel-header is-settings-head">
+            <span class="is-settings-title"><Fragment set:html={ico(i.sliders, 15)} />Settings for all images</span>
+            <span class="is-settings-sum small faint" id="is-settings-sum"></span>
+          </summary>
+          <div class="is-settings-body" id="is-settings"></div>
+        </details>
+        <p class="is-engine small faint" id="is-engine"></p>
+      </aside>
+    </div>
+
+    <p class="sr-only" id="is-live" aria-live="polite"></p>
+
+    <!-- Per-image settings -->
+    <dialog class="is-dialog is-item-dlg" id="is-item-dlg" aria-labelledby="is-item-title">
+      <div class="is-dlg-head">
+        <div class="grow">
+          <strong id="is-item-title">Settings for this image</strong>
+          <span class="small muted is-dlg-sub" id="is-item-sub"></span>
+        </div>
+        <button type="button" class="btn btn-icon btn-ghost" data-close aria-label="Close" title="Close (Esc)"><Fragment set:html={ico(i.close)} /></button>
+      </div>
+      <div class="is-dlg-body" id="is-item-form"></div>
+      <div class="is-dlg-foot">
+        <button type="button" class="btn btn-ghost" id="is-item-reset">Use global settings</button>
+        <span class="grow"></span>
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="button" class="btn btn-primary" id="is-item-apply">Apply to this image</button>
+      </div>
+    </dialog>
+
+    <!-- Before / after comparison -->
+    <dialog class="is-dialog is-cmp" id="is-cmp" aria-labelledby="is-cmp-title">
+      <div class="is-dlg-head">
+        <div class="grow">
+          <strong id="is-cmp-title" data-cmp="title">Compare</strong>
+          <span class="small muted is-dlg-sub">Drag the divider · scroll or use the buttons to zoom · drag to pan when zoomed</span>
+        </div>
+        <div class="is-cmp-zoom" role="group" aria-label="Zoom">
+          <button type="button" class="btn btn-icon btn-sm" data-cmp="out" aria-label="Zoom out" title="Zoom out (−)"><Fragment set:html={ico(i.zout, 16)} /></button>
+          <span class="is-cmp-zl mono small" data-cmp="zoom" aria-live="polite">100%</span>
+          <button type="button" class="btn btn-icon btn-sm" data-cmp="in" aria-label="Zoom in" title="Zoom in (+)"><Fragment set:html={ico(i.zin, 16)} /></button>
+          <button type="button" class="btn btn-icon btn-sm" data-cmp="fit" aria-label="Fit to window" title="Fit (0)"><Fragment set:html={ico(i.fit, 16)} /></button>
+          <button type="button" class="btn btn-sm" data-cmp="actual" title="Actual pixels (1)">1:1</button>
+        </div>
+        <button type="button" class="btn btn-icon btn-ghost" data-cmp="close" aria-label="Close comparison" title="Close (Esc)"><Fragment set:html={ico(i.close)} /></button>
+      </div>
+      <div class="is-cmp-stage" id="is-cmp-stage">
+        <div class="is-cmp-content">
+          <div class="is-cmp-before"></div>
+          <div class="is-cmp-after"><img alt="" draggable="false" /></div>
+        </div>
+        <span class="is-cmp-tag is-cmp-tag-l" data-cmp="before-label">Original</span>
+        <span class="is-cmp-tag is-cmp-tag-r" data-cmp="after-label">Output</span>
+        <div class="is-cmp-divider" id="is-cmp-divider" role="slider" tabindex="0" aria-label="Comparison divider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-orientation="horizontal">
+          <span class="is-cmp-grip" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6-6 6 6 6M15 6l6 6-6 6"/></svg></span>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Crop / rotate / flip -->
+    <dialog class="is-dialog is-crop" id="is-crop" aria-labelledby="is-crop-title">
+      <div class="is-dlg-head">
+        <div class="grow">
+          <strong id="is-crop-title">Crop &amp; rotate</strong>
+          <span class="small muted is-dlg-sub" data-crop="title"></span>
+        </div>
+        <button type="button" class="btn btn-icon btn-ghost" data-crop="cancel" aria-label="Cancel" title="Cancel (Esc)"><Fragment set:html={ico(i.close)} /></button>
+      </div>
+      <div class="is-crop-tools" role="toolbar" aria-label="Crop tools">
+        <label class="is-crop-aspect small"><span>Aspect</span>
+          <select class="select" data-crop="aspect" aria-label="Crop aspect ratio">
+            <option value="free">Free</option>
+            <option value="1:1">1:1 square</option>
+            <option value="4:3">4:3</option>
+            <option value="3:4">3:4</option>
+            <option value="16:9">16:9</option>
+            <option value="9:16">9:16</option>
+          </select>
+        </label>
+        <div class="is-crop-btns">
+          <button type="button" class="btn btn-icon" data-crop="rotl" aria-label="Rotate left 90°" title="Rotate left 90°"><Fragment set:html={ico(i.rotl)} /></button>
+          <button type="button" class="btn btn-icon" data-crop="rotr" aria-label="Rotate right 90°" title="Rotate right 90°"><Fragment set:html={ico(i.rotr)} /></button>
+          <button type="button" class="btn btn-icon" data-crop="fliph" aria-label="Flip horizontally" title="Flip horizontally"><Fragment set:html={ico(i.fliph)} /></button>
+          <button type="button" class="btn btn-icon" data-crop="flipv" aria-label="Flip vertically" title="Flip vertically"><Fragment set:html={ico(i.flipv)} /></button>
+          <button type="button" class="btn btn-ghost btn-sm" data-crop="reset">Reset</button>
+        </div>
+      </div>
+      <div class="is-crop-host">
+        <canvas tabindex="0" aria-label="Crop area. Drag to draw a crop box, drag inside it to move it, drag a corner to resize. Arrow keys move the box."></canvas>
+      </div>
+      <div class="is-dlg-foot">
+        <span class="small mono is-crop-info" data-crop="info" aria-live="polite"></span>
+        <span class="grow"></span>
+        <button type="button" class="btn" data-crop="cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" data-crop="apply">Apply</button>
+      </div>
+    </dialog>
+  </div>
 </ToolLayout>
+
+<script>
+  import { init } from '../../tools/image-studio/main';
+  init();
+</script>
+
+<style is:global>
+  .is { display: flex; flex-direction: column; gap: 12px; }
+  .is-privacy { display: flex; gap: 10px; align-items: flex-start; margin: 0; padding: 10px 14px; border-radius: var(--radius); background: var(--success-soft); color: var(--text); font-size: 0.875rem; line-height: 1.45; border: 1px solid color-mix(in srgb, var(--success) 25%, transparent); }
+  .is-privacy svg { flex: none; color: var(--success); margin-top: 2px; }
+  .is-privacy strong { color: var(--success); }
+
+  /* ---------- Empty state ---------- */
+  .is-empty { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 16px; align-items: stretch; }
+  .is-drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 280px; padding: 32px 20px; text-align: center; cursor: pointer; }
+  .is-drop:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .is-drop-icon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); margin-bottom: 4px; }
+  .is-drop-title { font-size: 1.15rem; }
+  .is-drop-sub { color: var(--text-muted); font-size: 0.9rem; }
+  .is-drop-sub u { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .is-drop-over { display: none; font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+  .is-empty-side { display: flex; flex-direction: column; gap: 14px; justify-content: center; padding: 20px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+  .is-sample-btn { align-self: flex-start; gap: 8px; border-color: var(--accent); color: var(--accent); }
+  .is-sample-btn:hover { background: var(--accent-soft); }
+  .is-features { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; color: var(--text-muted); }
+  .is-features li { display: flex; gap: 8px; align-items: baseline; }
+  .is-features li::before { content: ''; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); transform: translateY(-2px); }
+  .is-features b { color: var(--text); font-weight: 600; }
+
+  .is-has-items .is-empty { display: contents; }
+  .is-has-items .is-empty-side { display: none; }
+  .is-has-items .is-drop:not(.is-dragover) { display: none; }
+  .is-has-items .is-drop.is-dragover { position: fixed; inset: 12px; z-index: 200; min-height: 0; border-width: 3px; background: color-mix(in srgb, var(--accent-soft) 92%, transparent); backdrop-filter: blur(3px); }
+  .is-has-items .is-drop.is-dragover > :not(.is-drop-over, .is-drop-icon) { display: none; }
+  .is-has-items .is-drop.is-dragover .is-drop-over { display: block; }
+  .is:not(.is-has-items) .is-work { display: none; }
+
+  /* ---------- Workspace ---------- */
+  .is-work { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; align-items: start; }
+  .is-main { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+  .is-toolbar { position: sticky; top: calc(var(--header-h) + 8px); z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; background: color-mix(in srgb, var(--bg-elev) 94%, transparent); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+  .is-count-wrap { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+  .is-count { font-size: 0.875rem; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .is-busy { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); white-space: nowrap; }
+  .is-busy::before { content: ''; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--accent); animation: is-spin 0.8s linear infinite; }
+  @keyframes is-spin { to { transform: rotate(360deg); } }
+  .is-tb-end { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+
+  .is-totals { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 18px; padding: 10px 14px; border-radius: var(--radius); background: var(--bg-elev); border: 1px solid var(--border); font-size: 0.875rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .is-totals:empty { display: none; }
+  .is-totals b { color: var(--text); font-weight: 650; }
+  .is-totals .is-tot-big { font-size: 1.05rem; color: var(--success); font-weight: 700; }
+  .is-totals .is-tot-big.is-worse { color: var(--danger); }
+  .is-gps-alert { display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border-radius: var(--radius); background: var(--warning-soft); border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent); font-size: 0.875rem; line-height: 1.45; }
+  .is-gps-alert svg { flex: none; color: var(--warning); margin-top: 2px; }
+  .is-gps-alert strong { color: var(--warning); }
+
+  /* ---------- Items ---------- */
+  .is-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .is-item { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto auto; grid-template-areas: 'thumb info save acts' 'thumb extra extra extra'; gap: 4px 14px; align-items: center; padding: 10px 12px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); }
+  .is-item.is-error { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+  .is-thumb { grid-area: thumb; align-self: start; position: relative; width: 76px; height: 76px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); padding: 0; cursor: zoom-in; background-color: #fff; background-image: linear-gradient(45deg, #e7e7e3 25%, transparent 25%, transparent 75%, #e7e7e3 75%), linear-gradient(45deg, #e7e7e3 25%, transparent 25%, transparent 75%, #e7e7e3 75%); background-size: 12px 12px; background-position: 0 0, 6px 6px; }
+  .is-thumb:disabled { cursor: default; }
+  .is-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .is-thumb-ph { display: grid; place-items: center; width: 100%; height: 100%; background: var(--bg-sunken); color: var(--text-faint); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; }
+  .is-error .is-thumb-ph { color: var(--danger); background: var(--danger-soft); }
+  .is-info { grid-area: info; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .is-name-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+  .is-name { font-weight: 600; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  .is-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 650; padding: 1px 7px; border-radius: 999px; background: var(--bg-sunken); color: var(--text-muted); border: 1px solid var(--border); white-space: nowrap; }
+  .is-chip-gps { background: var(--danger-soft); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
+  .is-chip-meta { background: var(--warning-soft); color: var(--warning); border-color: transparent; }
+  .is-chip-accent { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+  .is-dims { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: 0.8rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .is-dims .is-arrow { color: var(--text-faint); }
+  .is-dims b { color: var(--text); font-weight: 600; }
+  .is-status { font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px; min-height: 18px; }
+  .is-bar { position: relative; flex: 0 0 120px; height: 4px; border-radius: 2px; background: var(--bg-sunken); overflow: hidden; }
+  .is-bar::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; border-radius: 2px; background: var(--accent); animation: is-indet 1.1s ease-in-out infinite; }
+  @keyframes is-indet { from { left: -40%; } to { left: 100%; } }
+  .is-status-err { color: var(--danger); font-weight: 500; }
+  .is-save { grid-area: save; text-align: right; min-width: 78px; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .is-save-pct { display: block; font-size: 1.15rem; font-weight: 750; color: var(--success); }
+  .is-save-lbl { font-size: 0.72rem; color: var(--text-faint); }
+  .is-save.is-worse .is-save-pct { color: var(--danger); }
+  .is-acts { grid-area: acts; display: flex; gap: 2px; align-items: center; }
+  .is-acts .btn-icon { width: 32px; height: 32px; }
+  .is-acts .is-act-dl { color: var(--accent); }
+  .is-acts .is-act-del:hover { color: var(--danger); }
+  .is-extra { grid-area: extra; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .is-extra:empty { display: none; }
+  .is-suggest { font-size: 0.8rem; padding: 6px 10px; border-radius: var(--radius-sm); background: var(--danger-soft); color: var(--text); border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent); }
+  .is-suggest b { color: var(--danger); }
+  .is-note { font-size: 0.8rem; color: var(--text-muted); }
+  .is-meta { font-size: 0.8rem; }
+  .is-meta summary { cursor: pointer; color: var(--text-muted); font-weight: 550; width: fit-content; }
+  .is-meta summary:hover { color: var(--text); }
+  .is-meta dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 12px; margin: 6px 0 2px; padding: 8px 10px; background: var(--bg-sunken); border-radius: var(--radius-sm); }
+  .is-meta dt { color: var(--text-faint); }
+  .is-meta dd { margin: 0; overflow-wrap: anywhere; }
+  .is-meta .is-gone { color: var(--success); font-weight: 600; }
+
+  /* ---------- Settings ---------- */
+  .is-side { position: sticky; top: calc(var(--header-h) + 8px); display: flex; flex-direction: column; gap: 8px; max-height: calc(100vh - var(--header-h) - 16px); overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  .is-settings { flex: none; }
+  .is-settings-head { cursor: pointer; list-style: none; flex-wrap: nowrap; }
+  .is-settings-head::-webkit-details-marker { display: none; }
+  .is-settings-title { display: inline-flex; align-items: center; gap: 6px; color: var(--text); white-space: nowrap; }
+  .is-settings-sum { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; min-width: 0; }
+  .is-settings-body { padding: 12px; }
+  .is-engine { margin: 0 4px; }
+  .is-form { display: flex; flex-direction: column; gap: 14px; }
+  .is-form .is-fmt { display: flex; }
+  .is-form .is-fmt .btn { flex: 1; padding: 0 4px; }
+  .is-hint { margin: 2px 0 0; line-height: 1.4; }
+  .is-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .is-span2 { grid-column: 1 / -1; }
+  .is-form [data-r='pct'] { margin-top: 8px; }
+  .is-target-row { margin-top: 6px; flex-wrap: nowrap; }
+  .is-target-row .input { width: 96px; flex: 1; }
+  .is-target-row .select { width: 76px; flex: none; }
+  .is-bg-row { flex-wrap: nowrap; }
+  .is-bg-row .input { flex: 1; min-width: 0; }
+  .is-swatch { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border-strong); cursor: pointer; padding: 0; }
+  .is-more { border-top: 1px solid var(--border); padding-top: 8px; }
+  .is-more summary { cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); padding: 2px 0; }
+  .is-more summary:hover { color: var(--text); }
+  .is-more-body { display: flex; flex-direction: column; gap: 14px; padding-top: 10px; }
+
+  /* ---------- Dialogs ---------- */
+  .is-dialog { padding: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-elev); color: var(--text); box-shadow: var(--shadow-lg); max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); }
+  .is-dialog[open] { display: flex; flex-direction: column; }
+  .is-dialog::backdrop { background: rgb(0 0 0 / 0.55); backdrop-filter: blur(2px); }
+  .is-dlg-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .is-dlg-head .grow { display: flex; flex-direction: column; min-width: 0; }
+  .is-dlg-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .is-dlg-body { padding: 14px; overflow: auto; }
+  .is-dlg-foot { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .is-item-dlg { width: 420px; }
+
+  .is-cmp { width: min(1200px, calc(100vw - 24px)); height: min(900px, calc(100dvh - 24px)); }
+  .is-cmp-zoom { display: flex; align-items: center; gap: 4px; }
+  .is-cmp-zl { min-width: 48px; text-align: center; }
+  .is-cmp-stage { position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; cursor: ew-resize; background-color: #fff; background-image: linear-gradient(45deg, #e7e7e3 25%, transparent 25%, transparent 75%, #e7e7e3 75%), linear-gradient(45deg, #e7e7e3 25%, transparent 25%, transparent 75%, #e7e7e3 75%); background-size: 20px 20px; background-position: 0 0, 10px 10px; }
+  :root[data-theme='dark'] .is-cmp-stage, :root[data-theme='dark'] .is-thumb { background-color: #2a2a2f; background-image: linear-gradient(45deg, #222226 25%, transparent 25%, transparent 75%, #222226 75%), linear-gradient(45deg, #222226 25%, transparent 25%, transparent 75%, #222226 75%); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .is-cmp-stage, :root:not([data-theme='light']) .is-thumb { background-color: #2a2a2f; background-image: linear-gradient(45deg, #222226 25%, transparent 25%, transparent 75%, #222226 75%), linear-gradient(45deg, #222226 25%, transparent 25%, transparent 75%, #222226 75%); }
+  }
+  .is-cmp-stage.is-panning { cursor: grabbing; }
+  .is-cmp-content { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .is-cmp-before, .is-cmp-after { position: absolute; inset: 0; }
+  .is-cmp-before canvas, .is-cmp-after img { width: 100%; height: 100%; display: block; max-width: none; pointer-events: none; }
+  .is-cmp-content.is-pixelated canvas, .is-cmp-content.is-pixelated img { image-rendering: pixelated; }
+  .is-cmp-divider { position: absolute; top: 0; bottom: 0; width: 0; z-index: 3; outline: none; }
+  .is-cmp-divider::before { content: ''; position: absolute; top: 0; bottom: 0; left: -1px; width: 2px; background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35); }
+  .is-cmp-grip { position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%); width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: #fff; color: #222; box-shadow: 0 2px 10px rgb(0 0 0 / 0.35); }
+  .is-cmp-divider:focus-visible .is-cmp-grip { box-shadow: 0 0 0 3px var(--accent), 0 2px 10px rgb(0 0 0 / 0.35); }
+  .is-cmp-tag { position: absolute; top: 10px; z-index: 2; padding: 3px 9px; border-radius: 999px; background: rgb(0 0 0 / 0.62); color: #fff; font-size: 0.75rem; font-weight: 600; pointer-events: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .is-cmp-tag-l { left: 10px; }
+  .is-cmp-tag-r { right: 10px; }
+
+  .is-crop { width: min(920px, calc(100vw - 24px)); }
+  .is-crop-tools { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+  .is-crop-aspect { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-weight: 600; }
+  .is-crop-aspect .select { width: 132px; }
+  .is-crop-btns { display: flex; align-items: center; gap: 4px; }
+  .is-crop-host { height: min(560px, calc(100dvh - 230px)); min-height: 200px; display: grid; place-items: center; padding: 12px; background: var(--bg-sunken); overflow: hidden; }
+  .is-crop-host canvas { touch-action: none; cursor: crosshair; border-radius: 2px; }
+  .is-crop-info { color: var(--text-muted); }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 1100px) {
+    .is-work { grid-template-columns: minmax(0, 1fr) 300px; }
+  }
+  @media (max-width: 900px) {
+    .is-empty { grid-template-columns: 1fr; }
+    .is-drop { min-height: 220px; }
+    .is-work { grid-template-columns: 1fr; }
+    .is-side { position: static; max-height: none; overflow: visible; order: -1; }
+    .is-toolbar { top: calc(var(--header-h) + 4px); }
+    .is-engine { display: none; }
+  }
+  @media (max-width: 640px) {
+    .is-hide-sm { display: none; }
+    .is-privacy { font-size: 0.8rem; }
+    .is-item { grid-template-columns: 60px minmax(0, 1fr) auto; grid-template-areas: 'thumb info save' 'acts acts acts' 'extra extra extra'; padding: 10px; gap: 6px 10px; }
+    .is-thumb { width: 60px; height: 60px; }
+    .is-acts { justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 6px; }
+    .is-acts .btn-icon { width: 38px; height: 38px; }
+    .is-save { min-width: 0; }
+    .is-bar { flex-basis: 64px; }
+    .is-cmp, .is-crop { width: 100vw; height: 100dvh; max-width: 100vw; max-height: 100dvh; border-radius: 0; border: 0; }
+    .is-cmp .is-dlg-sub { display: none; }
+    .is-cmp-zoom { order: 3; width: 100%; justify-content: center; }
+    .is-crop-host { flex: 1; height: auto; }
+    .is-item-dlg { width: 100vw; }
+  }
+</style>

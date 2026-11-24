@@ -54,6 +54,7 @@ export const tools: Tool[] = [
   },
   {
     slug: 'image-studio',
+    ready: true,
     name: 'Image Studio',
     tagline: 'Compress, resize and convert images (JPEG, PNG, WebP), strip metadata and rasterize SVG, in batches.',
     category: 'Media',

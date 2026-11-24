@@ -7,6 +7,8 @@ import { type Edit, editedSize, isIdentityEdit } from './types';
 type Crop = NonNullable<Edit['crop']>;
 const FULL: Crop = { x: 0, y: 0, w: 1, h: 1 };
 const MIN = 0.02;
+/** Margin around the image so the corner handles are never clipped by the canvas edge. */
+const M = 10;
 
 export class CropEditor {
   private dlg: HTMLDialogElement;
@@ -27,7 +29,7 @@ export class CropEditor {
     this.cv = dlg.querySelector('canvas')!;
     this.info = dlg.querySelector('[data-crop="info"]')!;
     this.aspectSel = dlg.querySelector('[data-crop="aspect"]')!;
-    const on = (k: string, fn: () => void) => dlg.querySelector(`[data-crop="${k}"]`)!.addEventListener('click', fn);
+    const on = (k: string, fn: () => void) => dlg.querySelectorAll(`[data-crop="${k}"]`).forEach((b) => b.addEventListener('click', fn));
     on('rotl', () => this.rotate(-90));
     on('rotr', () => this.rotate(90));
     on('fliph', () => this.flip(true));
@@ -133,16 +135,20 @@ export class CropEditor {
     const host = this.cv.parentElement!;
     const dpr = window.devicePixelRatio || 1;
     const rw = (this.rotated as HTMLCanvasElement).width, rh = (this.rotated as HTMLCanvasElement).height;
-    const maxW = host.clientWidth, maxH = Math.max(200, host.clientHeight);
-    const s = Math.min(maxW / rw, maxH / rh);
+    const cs = getComputedStyle(host);
+    const maxW = Math.max(50, host.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+    const maxH = Math.max(120, host.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom));
+    const s = Math.min((maxW - 2 * M) / rw, (maxH - 2 * M) / rh);
     const cw = Math.max(1, Math.floor(rw * s)), ch = Math.max(1, Math.floor(rh * s));
-    this.cv.style.width = `${cw}px`;
-    this.cv.style.height = `${ch}px`;
-    this.cv.width = Math.round(cw * dpr);
-    this.cv.height = Math.round(ch * dpr);
-    this.box = { x: 0, y: 0, w: cw, h: ch };
+    this.cv.style.width = `${cw + 2 * M}px`;
+    this.cv.style.height = `${ch + 2 * M}px`;
+    this.cv.width = Math.round((cw + 2 * M) * dpr);
+    this.cv.height = Math.round((ch + 2 * M) * dpr);
+    this.box = { x: M, y: M, w: cw, h: ch };
     const ctx = this.cv.getContext('2d')!;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cw + 2 * M, ch + 2 * M);
+    ctx.translate(M, M);
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(this.rotated as CanvasImageSource, 0, 0, cw, ch);
     const c = this.edit.crop ?? FULL;
@@ -182,7 +188,8 @@ export class CropEditor {
     let mode: 'move' | 'resize' | null = null;
     let ax = 0, ay = 0, start: Crop = FULL, sx = 0, sy = 0;
     const norm = (e: PointerEvent) => {
-      const r = this.cv.getBoundingClientRect();
+      const c = this.cv.getBoundingClientRect();
+      const r = { left: c.left + this.box.x, top: c.top + this.box.y, width: this.box.w, height: this.box.h };
       return { u: Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), v: Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)), r };
     };
     this.cv.addEventListener('pointerdown', (e) => {

@@ -67,6 +67,9 @@ export function createSettingsForm(
       </div>
       <p class="small muted is-hint" data-r="t-hint" hidden>Finds the highest quality that fits, and shrinks the dimensions only if it has to.</p>
     </div>
+    <details class="is-more" data-r="more">
+    <summary>Transparency &amp; SVG</summary>
+    <div class="is-more-body">
     <div class="field">
       <label class="label" for="${p}-bg">Background for transparency</label>
       <div class="row is-bg-row">
@@ -82,7 +85,10 @@ export function createSettingsForm(
       <select class="select" id="${p}-svg" data-r="svg">
         ${[0.5, 1, 2, 3, 4, 8].map((s) => `<option value="${s}">${s}× intrinsic size</option>`).join('')}
       </select>
+      <p class="small muted is-hint">SVG is vector art; pick how many pixels to render it at.</p>
     </div>
+    </div>
+    </details>
   `));
 
   const $ = <T extends HTMLElement>(r: string) => root.querySelector<T>(`[data-r="${r}"]`)!;
