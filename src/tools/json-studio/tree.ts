@@ -161,7 +161,7 @@ export class TreeView {
         if (this.matches.length <= EXPAND_CAP) for (const a of anc) this.expanded.add(a);
       }
       if (isContainer(v)) {
-        const chain = anc.concat(v);
+        const chain = [...anc, v as object];
         if (Array.isArray(v)) for (let k = v.length - 1; k >= 0; k--) stack.push({ v: v[k], parent: v, key: k, anc: chain });
         else {
           const keys = Object.keys(v);
@@ -206,11 +206,12 @@ export class TreeView {
       const { v, anc } = stack.pop()!;
       if (!isContainer(v)) continue;
       if (v === target) {
-        for (const a of anc.concat(v)) this.expanded.add(a);
+        for (const a of anc) this.expanded.add(a);
+        this.expanded.add(v);
         this.rebuild();
         return;
       }
-      for (const c of Object.values(v)) if (isContainer(c)) stack.push({ v: c, anc: anc.concat(v) });
+      for (const c of Object.values(v)) if (isContainer(c)) stack.push({ v: c, anc: [...anc, v] });
     }
   }
 

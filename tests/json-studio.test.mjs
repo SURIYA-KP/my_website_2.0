@@ -11,6 +11,8 @@ const Papa = require('papaparse');
 const FIX = path.join(FIXTURES, 'json-studio');
 fs.mkdirSync(FIX, { recursive: true });
 
+const log = process.env.JSS_DEBUG ? (m) => console.log(`  · ${m}`) : () => {};
+
 // ---------------------------------------------------------------- helpers
 const rev = (page) => page.$eval('#jss', (e) => Number(e.dataset.rev || 0));
 /** Replace the input (like typing/pasting) and wait for validation to run. */
@@ -31,7 +33,7 @@ const clip = (page) => page.evaluate(() => navigator.clipboard.readText());
 /** Clipboard writes are async: poll briefly, then assert. */
 async function clipIs(page, expected, msg) {
   await page.waitForFunction(async (e) => (await navigator.clipboard.readText()) === e, expected, { timeout: 2000, polling: 50 }).catch(() => {});
-  await clipIs(page, expected, msg);
+  assert.equal(await clip(page), expected, msg);
 }
 const setClip = (page, t) => page.evaluate((t) => navigator.clipboard.writeText(t), t);
 const cmd = (page, name) => page.click(`.jss-toolbar [data-cmd="${name}"]`);
@@ -67,6 +69,7 @@ await runToolTest('json-studio', async ({ page, context, shot, BASE_URL }) => {
   await page.waitForSelector('#jss[data-ready]');
 
   // ---------- loads the example by default
+  log('loads the example by default');
   assert.equal(await badge(page), 'Valid JSON');
   const example = JSON.parse(await input(page));
   assert.equal(example.users.length, 3, 'example API response is preloaded');
@@ -78,6 +81,7 @@ await runToolTest('json-studio', async ({ page, context, shot, BASE_URL }) => {
   await shot('example');
 
   // ---------- format with 2 / 4 / tab, minify (exact output)
+  log('format with 2 / 4 / tab, minify (exact output)');
   await setInput(page, SAMPLE);
   assert.equal(await page.textContent('[data-stat="keys"]'), '5');
   assert.equal(await page.textContent('[data-stat="depth"]'), '3');
@@ -104,6 +108,7 @@ await runToolTest('json-studio', async ({ page, context, shot, BASE_URL }) => {
   assert.equal(await input(page), SAMPLE_2, 'Shift+Alt+F formats');
 
   // ---------- Tab indents inside the editor
+  log('Tab indents inside the editor');
   await page.$eval('#jss-input', (t) => (t.focus(), t.setSelectionRange(2, 2)));
   await act(page, () => page.keyboard.press('Tab'));
   assert.equal((await input(page)).split('\n')[1], '    "b": 1,', 'Tab inserts the indent unit');
@@ -111,6 +116,7 @@ await runToolTest('json-studio', async ({ page, context, shot, BASE_URL }) => {
   assert.equal(await input(page), SAMPLE_2, 'Shift+Tab outdents');
 
   // ---------- sort keys (recursive, arrays keep order)
+  log('sort keys (recursive, arrays keep order)');
   await setInput(page, '{"zeta":{"b":2,"a":1},"alpha":[{"y":1,"x":[{"d":0,"c":0}]}],"Mid":null}');
   await act(page, () => cmd(page, 'sort'));
   assert.equal(
@@ -119,6 +125,7 @@ await runToolTest('json-studio', async ({ page, context, shot, BASE_URL }) => {
   );
 
   // ---------- escape / unescape
+  log('escape / unescape');
   await setInput(page, '{"a":"x\\"y","n":1}');
   await act(page, () => cmd(page, 'escape'));
   assert.equal(await input(page), '"{\\"a\\":\\"x\\\\\\"y\\",\\"n\\":1}"', 'escape');
@@ -130,6 +137,7 @@ await runToolTest('json-studio', async ({ page, context, shot, BASE_URL }) => {
   assert.equal(await input(page), 'line1\nline2 "q"', 'unescape without surrounding quotes');
 
   // ---------- copy / download the input
+  log('copy / download the input');
   await setInput(page, SAMPLE_2);
   await setClip(page, '');
   await cmd(page, 'copy');
@@ -139,6 +147,7 @@ await runToolTest('json-studio', async ({ page, context, shot, BASE_URL }) => {
   assert.match(dlIn.filename, /\.json$/);
 
   // ---------- errors: line, column, hint, highlighted + jumpable line
+  log('errors: line, column, hint, highlighted + jumpable line');
   const cases = [
     {
       name: 'trailing comma',
@@ -210,6 +219,7 @@ await runToolTest('json-studio', async ({ page, context, shot, BASE_URL }) => {
   assert.equal(await page.$eval('.jss-gutter-inner', (g) => g.querySelector('.is-error')?.textContent), '302');
 
   // ---------- Fix it: lenient repair with a list of changes, and undo
+  log('Fix it: lenient repair with a list of changes, and undo');
   const JSON5ISH = `// user record
 {
   name: 'Ada',   /* inline comment */
@@ -238,6 +248,7 @@ await runToolTest('json-studio', async ({ page, context, shot, BASE_URL }) => {
   await page.waitForSelector('.toast-error:has-text("Could not repair")');
 
   // ---------- Example / clear / empty state
+  log('Example / clear / empty state');
   await act(page, () => cmd(page, 'clear'));
   assert.equal(await badge(page), 'Empty');
   assert.ok(await page.isVisible('[data-tabpanel="out:formatted"] .jss-out-empty'), 'empty state shown');
@@ -245,6 +256,7 @@ await runToolTest('json-studio', async ({ page, context, shot, BASE_URL }) => {
   assert.deepEqual(JSON.parse(await input(page)), example);
 
   // ---------- tree: badges, counts, expand / collapse
+  log('tree: badges, counts, expand / collapse');
   await tab(page, 'tree');
   await page.waitForSelector('.jss-row');
   const usersRow = treeRow(page, 'users');
@@ -262,6 +274,7 @@ await runToolTest('json-studio', async ({ page, context, shot, BASE_URL }) => {
   await page.click('#jss-collapse');
 
   // ---------- tree search: highlights, auto-expands, next / previous
+  log('tree search: highlights, auto-expands, next / previous');
   await page.fill('#jss-search', 'grace');
   await page.waitForFunction(() => document.querySelector('#jss-search-count').textContent === '1 of 3');
   const marks = await page.$$eval('.jss-row mark', (m) => m.map((x) => x.textContent.toLowerCase()));
@@ -282,6 +295,7 @@ await runToolTest('json-studio', async ({ page, context, shot, BASE_URL }) => {
   await page.waitForFunction(() => document.querySelector('#jss-search-count').textContent === '');
 
   // ---------- tree path copy: JSONPath and JS, key with spaces, odd keys
+  log('tree path copy: JSONPath and JS, key with spaces, odd keys');
   await page.click('#jss-expand');
   await treeRow(page, 'last login').click();
   await clipIs(page, "$.users[0]['last login']", 'click copies JSONPath');
@@ -290,12 +304,19 @@ await runToolTest('json-studio', async ({ page, context, shot, BASE_URL }) => {
   await page.click('#jss-copy-js');
   await clipIs(page, 'data.users[0]["last login"]', 'JS path copy');
   await page.click('[data-copies="js"]');
+  // The tree is virtualized: open just the branches we need.
+  await page.click('#jss-collapse');
+  await treeRow(page, 'meta').locator('[data-toggle]').click();
   await treeRow(page, 'rate-limit').click();
   await clipIs(page, 'data.meta["rate-limit"]', 'JS mode: click copies JS path');
   await page.click('#jss-copy-jp');
   await clipIs(page, "$.meta['rate-limit']");
   await page.click('[data-copies="jsonpath"]');
-  await treeRow(page, 'city', 1).click();
+  await page.click('#jss-collapse');
+  await treeRow(page, 'users').locator('[data-toggle]').click();
+  await treeRow(page, '2').locator('[data-toggle]').click();
+  await treeRow(page, 'address').locator('[data-toggle]').click();
+  await treeRow(page, 'city').click();
   await clipIs(page, '$.users[2].address.city');
   // Keyboard: arrows move, Enter copies.
   await page.focus('#jss-tree');
@@ -305,6 +326,7 @@ await runToolTest('json-studio', async ({ page, context, shot, BASE_URL }) => {
   await shot('tree-path');
 
   // ---------- YAML: view, copy, download, round trip
+  log('YAML: view, copy, download, round trip');
   await tab(page, 'yaml');
   const yamlView = await viewText(page, 'jss-yaml-view');
   assert.ok(yamlView.includes('last login:'));
@@ -332,6 +354,7 @@ await runToolTest('json-studio', async ({ page, context, shot, BASE_URL }) => {
   assert.deepEqual(JSON.parse(await input(page)), { a: 1, b: ['x', 'y'] }, 'Paste button converts YAML');
 
   // ---------- CSV: rows picker, delimiter, flatten, round trip
+  log('CSV: rows picker, delimiter, flatten, round trip');
   await act(page, () => cmd(page, 'example'));
   await tab(page, 'csv');
   await viewText(page, 'jss-csv-view');
@@ -366,6 +389,7 @@ await runToolTest('json-studio', async ({ page, context, shot, BASE_URL }) => {
   await page.selectOption('#jss-csv-delim', ',');
 
   // ---------- TypeScript (exact output)
+  log('TypeScript (exact output)');
   const TS_SAMPLE = {
     id: 7,
     name: 'Ada',
@@ -443,12 +467,14 @@ export interface Item {
   await clipIs(page, 'export type Root = RootItem[];\n\nexport interface RootItem {\n  a: string | number;\n  b?: B;\n}\n\nexport interface B {\n  c: boolean;\n}\n');
 
   // ---------- Formatted output: copy + download
+  log('Formatted output: copy + download');
   await tab(page, 'formatted');
   await setInput(page, SAMPLE);
   const dlFmt = await expectDownload(page, () => page.click('[data-cmd="out-download"]'));
   assert.equal(read(dlFmt), SAMPLE_2, 'formatted download');
 
   // ---------- file open: .json, .yaml, .csv
+  log('file open: .json, .yaml, .csv');
   const files = {
     'order.json': '{"order":{"id":42,"lines":[{"sku":"A","qty":2}]}}',
     'config.yaml': 'server:\n  host: localhost\n  port: 8080\n  tls: false\nfeatures:\n  - search\n  - export\nowner: ~\n',
@@ -485,6 +511,7 @@ export interface Item {
   assert.equal(await input(page), '{"dropped": true}', 'drop a file');
 
   // ---------- share via URL hash
+  log('share via URL hash');
   await setInput(page, '{"shared":true,"list":[1,2,3],"text":"héllo"}');
   assert.equal(await page.getAttribute('[data-cmd="share"]', 'aria-disabled'), 'false');
   await cmd(page, 'share');
@@ -500,28 +527,29 @@ export interface Item {
   await setInput(page, JSON.stringify({ big: 'x'.repeat(9000) }));
   assert.equal(await page.getAttribute('[data-cmd="share"]', 'aria-disabled'), 'true', 'share disabled over 8 KB');
   assert.match(await page.getAttribute('[data-cmd="share"]', 'title'), /limited to 8 KB/);
-  await cmd(page, 'share');
+  await page.click('.jss-toolbar [data-cmd="share"]', { force: true }); // aria-disabled still explains itself on click
   await page.waitForSelector('.toast-error:has-text("limited to 8 KB")');
   assert.equal(await page.textContent('#jss-share-note'), 'Share: over 8 KB');
   await page.evaluate(() => history.replaceState(null, '', location.pathname));
 
   // ---------- 5 MB input stays responsive (time-boxed)
+  log('5 MB input stays responsive (time-boxed)');
   await tab(page, 'formatted');
-  const t0 = Date.now();
+  const items = [];
+  for (let k = 0, size = 0; size < 5.3e6; k++) {
+    const o = { id: k, name: `user ${k}`, email: `u${k}@example.com`, active: k % 3 === 0, score: k * 1.5, tags: ['a', 'b', k % 7 ? 'c' : 'needle'], address: { city: `City ${k % 100}`, zip: String(10000 + k) } };
+    items.push(o);
+    size += JSON.stringify(o).length + 24;
+  }
+  const bigFile = path.join(FIX, 'large.json');
+  fs.writeFileSync(bigFile, JSON.stringify({ items }, null, 1));
+  assert.ok(fs.statSync(bigFile).size > 5e6, 'fixture is over 5 MB');
   await page.evaluate(() => {
     window.__longest = 0;
     new PerformanceObserver((l) => l.getEntries().forEach((e) => (window.__longest = Math.max(window.__longest, e.duration)))).observe({ type: 'longtask', buffered: false });
-    const items = [];
-    let size = 0;
-    for (let k = 0; size < 5.2e6; k++) {
-      const o = { id: k, name: `user ${k}`, email: `u${k}@example.com`, active: k % 3 === 0, score: k * 1.5, tags: ['a', 'b', k % 7 ? 'c' : 'needle'], address: { city: `City ${k % 100}`, zip: String(10000 + k) } };
-      items.push(o);
-      size += JSON.stringify(o).length + 6;
-    }
-    const ta = document.querySelector('#jss-input');
-    ta.value = JSON.stringify({ items }, null, 1);
-    ta.dispatchEvent(new Event('input', { bubbles: true }));
   });
+  const t0 = Date.now();
+  await page.setInputFiles('#jss-open input[type=file]', bigFile);
   await page.waitForFunction(() => document.querySelector('#jss-valid').textContent === 'Valid JSON' && Number(document.querySelector('#jss-stats').dataset.bytes) > 5e6, null, { timeout: 8000 });
   await page.waitForSelector('#jss-fmt-view .jss-cv-line');
   const loadMs = Date.now() - t0;
@@ -551,6 +579,21 @@ export interface Item {
   assert.ok(longest < 2500, `no main-thread freeze (longest task ${Math.round(longest)} ms)`);
   assert.ok((await page.locator('.jss-row').count()) < 200, 'tree is virtualized');
   assert.equal(await page.getAttribute('[data-cmd="share"]', 'aria-disabled'), 'true');
+  assert.ok(await page.isVisible('.jss-big-note'), 'large documents are shown read-only with an explanation');
+  assert.ok((await page.locator('#jss-big-view .jss-cv-line').count()) < 200, 'large input view is virtualized');
+  // Actions still work on the large document.
+  t = Date.now();
+  await act(page, () => cmd(page, 'minify'));
+  const minMs = Date.now() - t;
+  assert.ok(Number(await page.$eval('#jss-stats', (e) => e.dataset.bytes)) < fs.statSync(bigFile).size, 'minify shrinks the large document');
+  assert.ok(minMs < 3000, `minify of 5 MB in ${minMs} ms`);
+  // A large paste skips the slow textarea too, and errors still point at the right line.
+  await setClip(page, fs.readFileSync(bigFile, 'utf8').replace('"id": 1234,', '"id": 1234,,'));
+  await page.focus('#jss-big-view');
+  await act(page, () => page.keyboard.press('Control+v'));
+  assert.equal(await badge(page), 'Invalid');
+  const errLine = (await page.textContent('.jss-msg-pos')).match(/Line (\d+)/)[1];
+  assert.equal(await page.textContent('#jss-big-view .jss-cv-line.is-error .jss-cv-ln'), errLine, 'error line is highlighted and scrolled into view');
   await shot('large');
   await act(page, () => cmd(page, 'clear'));
 });

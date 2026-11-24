@@ -26,9 +26,9 @@ const emptyState = `<div class="jss-out-empty" hidden><p><strong>Nothing to show
   <div class="jss" id="jss">
     <div class="jss-toolbar" role="toolbar" aria-label="JSON actions">
       <div class="jss-tgroup">
-        <div class="btn" id="jss-open" aria-label="Open a file" title="Open a .json, .yaml or .csv file (or drop one anywhere)"><Fragment set:html={ico(i.open)} /><span>Open</span></div>
-        <button type="button" class="btn" data-cmd="paste" title="Paste from the clipboard (YAML and CSV are converted)"><Fragment set:html={ico(i.paste)} /><span>Paste</span></button>
-        <button type="button" class="btn" data-cmd="example" title="Load an example API response"><Fragment set:html={ico(i.example)} /><span class="jss-hide-sm">Example</span></button>
+        <div class="btn" id="jss-open" aria-label="Open a file" title="Open a .json, .yaml or .csv file (or drop one anywhere)"><Fragment set:html={ico(i.open)} /><span class="jss-hide-sm">Open</span></div>
+        <button type="button" class="btn" data-cmd="paste" aria-label="Paste" title="Paste from the clipboard (YAML and CSV are converted)"><Fragment set:html={ico(i.paste)} /><span class="jss-hide-sm">Paste</span></button>
+        <button type="button" class="btn" data-cmd="example" aria-label="Example" title="Load an example API response"><Fragment set:html={ico(i.example)} /><span class="jss-hide-sm">Example</span></button>
       </div>
       <div class="jss-tgroup">
         <label class="sr-only" for="jss-indent">Indentation</label>
@@ -37,18 +37,18 @@ const emptyState = `<div class="jss-out-empty" hidden><p><strong>Nothing to show
           <option value="4">4 spaces</option>
           <option value="tab">Tabs</option>
         </select>
-        <button type="button" class="btn btn-primary" data-cmd="format" title="Pretty-print the input (Shift+Alt+F)"><Fragment set:html={ico(i.format)} /><span>Format</span></button>
-        <button type="button" class="btn" data-cmd="minify" title="Remove all whitespace"><Fragment set:html={ico(i.minify)} /><span>Minify</span></button>
-        <button type="button" class="btn" data-cmd="sort" title="Sort object keys A→Z at every level"><Fragment set:html={ico(i.sort)} /><span>Sort keys</span></button>
+        <button type="button" class="btn btn-primary" data-cmd="format" title="Pretty-print the input (Shift+Alt+F)"><span class="jss-ico"><Fragment set:html={ico(i.format)} /></span><span>Format</span></button>
+        <button type="button" class="btn" data-cmd="minify" title="Remove all whitespace"><span class="jss-ico"><Fragment set:html={ico(i.minify)} /></span><span>Minify</span></button>
+        <button type="button" class="btn" data-cmd="sort" title="Sort object keys A→Z at every level"><span class="jss-ico"><Fragment set:html={ico(i.sort)} /></span><span>Sort<span class="jss-hide-sm"> keys</span></span></button>
       </div>
       <div class="jss-tgroup">
         <span class="btn-group" role="group" aria-label="String escaping">
-          <button type="button" class="btn" data-cmd="escape" title="Turn the whole input into one JSON string literal"><Fragment set:html={ico(i.escape)} /><span>Escape</span></button>
+          <button type="button" class="btn" data-cmd="escape" title="Turn the whole input into one JSON string literal"><span class="jss-ico"><Fragment set:html={ico(i.escape)} /></span><span>Escape</span></button>
           <button type="button" class="btn" data-cmd="unescape" title="Turn a JSON string literal back into its text">Unescape</button>
         </span>
       </div>
       <div class="jss-tgroup jss-tend">
-        <button type="button" class="btn" data-cmd="share" aria-disabled="false"><Fragment set:html={ico(i.share)} /><span>Share</span></button>
+        <button type="button" class="btn" data-cmd="share" aria-label="Share link" aria-disabled="false"><Fragment set:html={ico(i.share)} /><span class="jss-hide-sm">Share</span></button>
         <button type="button" class="btn btn-icon" data-cmd="copy" title="Copy the input" aria-label="Copy the input"><Fragment set:html={ico(i.copy)} /></button>
         <button type="button" class="btn btn-icon" data-cmd="download" title="Download the input as .json" aria-label="Download the input as .json"><Fragment set:html={ico(i.download)} /></button>
         <button type="button" class="btn btn-icon" data-cmd="clear" title="Clear the input" aria-label="Clear the input"><Fragment set:html={ico(i.clear)} /></button>
@@ -75,8 +75,15 @@ const emptyState = `<div class="jss-out-empty" hidden><p><strong>Nothing to show
             <div class="jss-errband" hidden></div>
             <textarea id="jss-input" class="jss-ta" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" wrap="off" aria-label="JSON input" aria-describedby="jss-editor-help" placeholder="Paste or type JSON here, or drop a .json / .yaml / .csv file"></textarea>
           </div>
-          <div class="jss-dropnote" aria-hidden="true">Drop to open</div>
         </div>
+        <div class="jss-big" hidden>
+          <div class="jss-big-note small">
+            <span><strong>Large document (<span id="jss-big-size"></span>).</strong> Shown read-only so the page stays fast. Format, minify, convert and explore it as usual.</span>
+            <button type="button" class="btn btn-sm" data-cmd="edit-large" title="Load the text into the editor. Typing in multi-megabyte text can be slow.">Edit anyway</button>
+          </div>
+          <div class="jss-code jss-big-view" id="jss-big-view" aria-label="Input, read-only large document" role="region"></div>
+        </div>
+        <div class="jss-dropnote" aria-hidden="true">Drop to open</div>
         <p class="sr-only" id="jss-editor-help">Tab indents and Shift+Tab outdents. Press Escape, then Tab, to move focus out of the editor.</p>
       </section>
 
@@ -207,7 +214,8 @@ const emptyState = `<div class="jss-out-empty" hidden><p><strong>Nothing to show
   body .jss-tend { margin-left: auto; }
   body .jss-toolbar .btn svg { flex: none; }
   body .jss-toolbar .btn-icon { width: 34px; }
-  body .jss-indent { width: 118px; }
+  body .jss-indent { width: auto; }
+  body .jss-ico { display: inline-flex; }
   body #jss-open { gap: 6px; }
   body #jss-open.is-dragover { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
   body [data-cmd='share'][aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; }
@@ -221,6 +229,7 @@ const emptyState = `<div class="jss-out-empty" hidden><p><strong>Nothing to show
   body .jss-fixed { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
 
   body .jss-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; height: var(--jss-h); }
+  body .jss-in { position: relative; }
   body .jss-main > .panel { min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
   body .jss-head { display: flex; align-items: center; gap: 10px; padding: 0 12px; height: 41px; border-bottom: 1px solid var(--border); flex: none; }
   body .jss-cursor { font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -237,7 +246,11 @@ const emptyState = `<div class="jss-out-empty" hidden><p><strong>Nothing to show
   body .jss-in:focus-within { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
   body .jss-ta::placeholder { color: var(--text-faint); }
   body .jss-errband { position: absolute; left: 0; right: 0; top: 0; height: 20px; background: color-mix(in srgb, var(--danger) 14%, transparent); border-left: 3px solid var(--danger); pointer-events: none; }
-  body .jss-dropnote { display: none; position: absolute; inset: 8px; border: 2px dashed var(--accent); border-radius: var(--radius); background: color-mix(in srgb, var(--accent-soft) 85%, transparent); color: var(--accent); font-weight: 650; align-items: center; justify-content: center; pointer-events: none; }
+  body .jss-big { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  body .jss-big-note { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; background: var(--accent-soft); color: var(--text); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  body .jss-cv-line.is-error { background: color-mix(in srgb, var(--danger) 14%, transparent); }
+  body .jss-cv-line.is-error .jss-cv-ln { color: var(--danger); font-weight: 700; }
+  body .jss-dropnote { display: none; position: absolute; inset: 49px 8px 8px; border: 2px dashed var(--accent); border-radius: var(--radius); background: color-mix(in srgb, var(--accent-soft) 85%, transparent); color: var(--accent); font-weight: 650; align-items: center; justify-content: center; pointer-events: none; }
   body .jss.is-dragover .jss-dropnote { display: flex; }
 
   /* Output */
@@ -334,11 +347,18 @@ const emptyState = `<div class="jss-out-empty" hidden><p><strong>Nothing to show
   }
   @media (max-width: 640px) {
     body .jss-hide-sm { display: none; }
+    /* Three tidy rows: files + output actions, formatting, escaping. */
     body .jss-toolbar { gap: 6px; padding: 6px; }
-    body .jss-tgroup + .jss-tgroup { padding-left: 0; border-left: 0; }
-    body .jss-tend { margin-left: 0; }
-    body .jss-toolbar .btn { padding: 0 9px; }
-    body .jss-indent { width: 92px; }
+    body .jss-tgroup { display: contents; }
+    body .jss-toolbar .btn { padding: 0 10px; }
+    body .jss-toolbar .jss-ico { display: none; }
+    body #jss-open, body .jss-toolbar [data-cmd='paste'], body .jss-toolbar [data-cmd='example'], body .jss-toolbar [data-cmd='share'] { width: 34px; padding: 0; }
+    body .jss-toolbar > .jss-tgroup:nth-child(1) > * { order: 1; }
+    body .jss-tend > * { order: 2; }
+    body .jss-tend > :first-child { margin-left: auto; }
+    body .jss-toolbar > .jss-tgroup:nth-child(2) > * { order: 3; }
+    body .jss-toolbar > .jss-tgroup:nth-child(3) > * { order: 4; }
+    body .jss-indent { width: auto; padding-left: 8px; }
     body .jss-out-head { flex-wrap: wrap; padding: 0 4px; }
     body .jss-out-actions { order: -1; width: 100%; justify-content: flex-end; padding-top: 6px; }
     body .jss-tabs .tab { padding-left: 9px; padding-right: 9px; }

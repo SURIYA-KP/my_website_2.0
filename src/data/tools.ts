@@ -38,6 +38,7 @@ export const tools: Tool[] = [
   },
   {
     slug: 'json-studio',
+    ready: true,
     name: 'JSON Studio',
     tagline: 'Format, validate and explore JSON as a tree. Convert between JSON, YAML and CSV, and generate TypeScript types.',
     category: 'Developer',

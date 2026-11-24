@@ -2,7 +2,7 @@
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
 import { copyText, debounce, downloadText, formatBytes, initTabs, setupDropzone, toast } from '../../lib/ui';
 import { CodeView } from './codeview';
-import { Editor } from './editor';
+import { Editor, LARGE_TEXT } from './editor';
 import { EXAMPLE_TEXT } from './example';
 import { parseJson, type JsonErrorInfo } from './jsonError';
 import { RepairError, repairJson } from './repair';
@@ -27,7 +27,7 @@ const FORMAT_LABEL: Record<FormatName, string> = { yaml: 'YAML', csv: 'CSV', jso
 
 export function init() {
   const root = $('#jss');
-  const editor = new Editor($('#jss-editor'));
+  const editor = new Editor($('.jss-in'));
   const indentSel = $<HTMLSelectElement>('#jss-indent');
   const msg = $('#jss-msg');
   const fixedBox = $('#jss-fixed');
@@ -210,10 +210,11 @@ export function init() {
   const csvRows = $<HTMLSelectElement>('#jss-csv-rows');
   const csvDelim = $<HTMLSelectElement>('#jss-csv-delim');
   let csvCandidatesVer = -1;
+  let csvPicked: string | null = null; // the user's explicit choice, kept while it still exists
   function csvCandidates() {
     if (csvCandidatesVer === ver) return;
     csvCandidatesVer = ver;
-    const prev = csvRows.value;
+    const prev = csvPicked;
     const found: { segs: Seg[]; count: number }[] = [];
     if (Array.isArray(doc)) found.push({ segs: [], count: doc.length });
     else {
@@ -236,7 +237,7 @@ export function init() {
       csvRows.add(opt);
     }
     const values = Array.from(csvRows.options).map((o) => o.value);
-    if (values.includes(prev)) csvRows.value = prev;
+    if (prev !== null && values.includes(prev)) csvRows.value = prev;
     else {
       // Default: the biggest array of objects (the shallowest on ties), else the document.
       const best = found.filter((f) => f.segs.length).sort((a, b) => b.count - a.count || a.segs.length - b.segs.length)[0];
@@ -280,7 +281,10 @@ export function init() {
   tsRoot.addEventListener('input', debounce(() => renderTs(false), 150));
   tsStyle.addEventListener('change', () => renderTs(false));
   tsRo.addEventListener('change', () => renderTs(false));
-  csvRows.addEventListener('change', () => renderCsv(false));
+  csvRows.addEventListener('change', () => {
+    csvPicked = csvRows.value;
+    renderCsv(false);
+  });
   csvDelim.addEventListener('change', () => renderCsv(false));
 
   initTabs(root, (group, name) => {
@@ -383,7 +387,7 @@ export function init() {
       setInput(out, { undoable: true });
       fixedBox.hidden = false;
       $('#jss-fixed-text').textContent = fixes.length ? `Repaired: ${fixes.join(', ')}.` : 'Reformatted: nothing needed fixing.';
-      toast(fixes.length ? `Fixed ${fixes.length} kind${fixes.length === 1 ? '' : 's'} of problem` : 'Nothing to fix');
+      toast(fixes.length ? 'JSON repaired' : 'Nothing to fix');
     } catch (err) {
       if (err instanceof RepairError) {
         toast(`Could not repair: ${err.message}`, 'error', 4500);
@@ -449,11 +453,29 @@ export function init() {
     attributeFilter: ['class'],
   });
 
-  // Pasting YAML / CSV over the whole document converts it.
+  editor.onLargeChange = (large) => {
+    root.dataset.large = String(large);
+    if (large) $('#jss-big-size').textContent = formatBytes(byteLength(editor.value));
+    cursorEl.hidden = large;
+  };
+  // Pasting while a large document is shown replaces it.
+  $('#jss-big-view').addEventListener('paste', (e) => {
+    const text = e.clipboardData?.getData('text/plain') ?? '';
+    if (!text) return;
+    e.preventDefault();
+    void loadText(text);
+  });
+
+  // Pasting YAML / CSV over the whole document converts it; huge pastes skip the slow textarea.
   editor.ta.addEventListener('paste', (e) => {
     const text = e.clipboardData?.getData('text/plain') ?? '';
     const ta = editor.ta;
     const replacingAll = ta.value.trim() === '' || (ta.selectionStart === 0 && ta.selectionEnd === ta.value.length);
+    if (text.length > LARGE_TEXT && replacingAll) {
+      e.preventDefault();
+      void loadText(text);
+      return;
+    }
     if (!text || !replacingAll || /^\s*[[{"]/.test(text)) {
       pendingJump = true;
       return;
@@ -513,7 +535,8 @@ export function init() {
         out = JSON.parse(text);
       } catch {
         try {
-          out = JSON.parse(`"${text.replace(/^"|"$/g, '')}"`);
+          const inner = text.length > 1 && text.startsWith('"') && text.endsWith('"') && !text.endsWith('\\"') ? text.slice(1, -1) : text;
+          out = JSON.parse(`"${inner}"`);
         } catch {
           out = undefined;
         }
@@ -545,6 +568,13 @@ export function init() {
       const url = `${location.href.split('#')[0]}#${hash}`;
       history.replaceState(null, '', url);
       void copyText(url, 'Share link copied. The JSON lives in the link itself.');
+    },
+    'edit-large'() {
+      toast('Loading the text into the editor. This can take a few seconds…', 'info', 3000);
+      setTimeout(() => {
+        editor.editLarge();
+        analyze({ force: true });
+      }, 50);
     },
     'go-error'() {
       if (error) editor.goTo(error.pos, error.line);
