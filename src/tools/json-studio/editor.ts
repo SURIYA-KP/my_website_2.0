@@ -48,6 +48,36 @@ export class Editor {
     this.renderGutter();
   }
 
+  /**
+   * Replace the whole text. Small documents go through the browser's edit stack so Ctrl+Z
+   * undoes the action; huge ones (or touch devices, where focusing pops the keyboard) are set directly.
+   */
+  setUndoable(text: string) {
+    const ta = this.ta;
+    const coarse = window.matchMedia('(pointer: coarse)').matches;
+    if (!coarse && text.length < 500_000 && ta.value.length < 500_000) {
+      ta.focus({ preventScroll: true });
+      ta.setSelectionRange(0, ta.value.length);
+      if (document.execCommand('insertText', false, text) && ta.value === text) {
+        ta.setSelectionRange(0, 0);
+        ta.scrollTop = 0;
+        ta.scrollLeft = 0;
+        this.totalLines = countLines(text);
+        this.renderGutter();
+        return;
+      }
+    }
+    this.value = text;
+  }
+
+  /** Scroll so that `line` is visible (about a third from the top) without moving focus. */
+  reveal(line: number) {
+    const ta = this.ta;
+    const top = (line - 1) * LH + PAD;
+    if (top < ta.scrollTop || top + LH > ta.scrollTop + ta.clientHeight) ta.scrollTop = Math.max(0, top - ta.clientHeight / 3);
+    this.renderGutter();
+  }
+
   setErrorLine(line: number) {
     this.errorLine = line;
     this.renderGutter();

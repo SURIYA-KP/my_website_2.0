@@ -174,6 +174,9 @@ export class TreeView {
     return this.matches.length;
   }
 
+  get queryText() {
+    return this.query;
+  }
   get matchCount() {
     return this.matches.length;
   }

@@ -26,7 +26,7 @@ export class CodeView {
     return this.text;
   }
 
-  setText(text: string) {
+  setText(text: string, keepScroll = false) {
     this.text = text;
     this.lines = text === '' ? [] : text.split('\n');
     let max = 0;
@@ -36,7 +36,10 @@ export class CodeView {
     this.inner.style.height = `${this.lines.length * LH + 16}px`;
     this.inner.style.width = `calc(${Math.min(max, 20000) + gutterCh + 4}ch + 24px)`;
     this.lastRange = '';
-    this.host.scrollTop = 0;
+    if (!keepScroll) {
+      this.host.scrollTop = 0;
+      this.host.scrollLeft = 0;
+    }
     this.render();
   }
 
@@ -44,7 +47,8 @@ export class CodeView {
     if (!this.raf) this.raf = requestAnimationFrame(() => ((this.raf = 0), this.render()));
   }
 
-  render() {
+  render(force = false) {
+    if (force) this.lastRange = '';
     const h = this.host.clientHeight || 600;
     const first = Math.max(0, Math.floor(this.host.scrollTop / LH) - OVERSCAN);
     const last = Math.min(this.lines.length, Math.ceil((this.host.scrollTop + h) / LH) + OVERSCAN);
