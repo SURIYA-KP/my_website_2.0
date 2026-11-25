@@ -1,5 +1,11 @@
 // Decoding QR codes from images and the camera. BarcodeDetector when available, jsQR otherwise.
-import jsQR from 'jsqr';
+type JsQR = typeof import('jsqr').default;
+let jsqrPromise: Promise<JsQR> | null = null;
+/** jsQR is only needed when scanning, so it is loaded on first use. */
+export function loadJsQR(): Promise<JsQR> {
+  jsqrPromise ??= import('jsqr').then((m) => m.default);
+  return jsqrPromise;
+}
 
 export interface Point {
   x: number;
@@ -32,7 +38,7 @@ export function getNativeDetector(): Promise<BD | null> {
   return detectorPromise;
 }
 
-function jsqrDetect(img: ImageData): Detection | null {
+function jsqrDetect(jsQR: JsQR, img: ImageData): Detection | null {
   const r = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
   if (!r || (!r.data && !r.binaryData.length)) return null;
   const l = r.location;
@@ -68,6 +74,7 @@ export async function decodeImage(src: CanvasImageSource, sw: number, sh: number
       /* fall back to jsQR */
     }
   }
+  const jsQR = await loadJsQR();
   const attempts: [number, number][] = [[1600, 0], [800, 0], [400, 0], [1000, 40], [500, 24]];
   const seen = new Set<string>();
   for (const [maxDim, pad] of attempts) {
@@ -75,7 +82,7 @@ export async function decodeImage(src: CanvasImageSource, sw: number, sh: number
     if (seen.has(key)) continue;
     seen.add(key);
     const { data, scale } = draw(src, sw, sh, maxDim, pad);
-    const r = jsqrDetect(data);
+    const r = jsqrDetect(jsQR, data);
     if (r) {
       r.corners = r.corners.map((p) => ({ x: (p.x - pad) / scale, y: (p.y - pad) / scale }));
       return r;
@@ -186,6 +193,7 @@ export async function decodeFrame(video: HTMLVideoElement, work: HTMLCanvasEleme
       /* fall through to jsQR */
     }
   }
+  const jsQR = await loadJsQR();
   const scale = Math.min(1, 720 / Math.max(vw, vh));
   const w = Math.round(vw * scale), h = Math.round(vh * scale);
   if (work.width !== w) work.width = w;

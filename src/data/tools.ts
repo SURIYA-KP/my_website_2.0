@@ -65,6 +65,7 @@ export const tools: Tool[] = [
   },
   {
     slug: 'qr-studio',
+    ready: true,
     name: 'QR Studio',
     tagline: 'Generate styled QR codes for links, Wi-Fi and contacts, or scan one from an image or your camera.',
     category: 'Media',

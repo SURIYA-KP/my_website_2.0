@@ -10,7 +10,7 @@ declare module 'qrcode' {
     getBitsLength(): number;
   }
   interface QRCodeSymbol {
-    modules: { size: number; data: Uint8Array };
+    modules: { size: number; data: Uint8Array; reservedBit: Uint8Array };
     version: number;
     errorCorrectionLevel: { bit: number };
     maskPattern: number;
