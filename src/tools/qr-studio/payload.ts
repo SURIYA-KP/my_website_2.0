@@ -215,7 +215,8 @@ export function encode(type: ContentType, v: Values): Encoded {
       if (Math.abs(lat) > 90) return { payload: '', error: 'Latitude must be between −90 and 90.' };
       if (Math.abs(lng) > 180) return { payload: '', error: 'Longitude must be between −180 and 180.' };
       const label = s(v.label);
-      return { payload: `geo:${lat},${lng}${label ? '?q=' + encodeURIComponent(label) : ''}` };
+      // "?q=lat,lng(Label)" drops a labelled pin in Android and most map apps; plain geo: readers ignore it.
+      return { payload: `geo:${lat},${lng}${label ? `?q=${lat},${lng}(${encodeURIComponent(label)})` : ''}` };
     }
     case 'event': {
       const summary = s(v.summary);
@@ -246,7 +247,7 @@ export function encode(type: ContentType, v: Values): Encoded {
 // ---------------------------------------------------------------------------
 
 export type Parsed =
-  | { kind: 'url'; url: string; scheme: string; host: string; safe: boolean }
+  | { kind: 'url'; url: string; scheme: string; host: string; safe: boolean; warnings: string[] }
   | { kind: 'wifi'; ssid: string; password: string; auth: string; hidden: boolean }
   | { kind: 'vcard'; fields: [string, string][]; name: string }
   | { kind: 'email'; to: string; subject: string; body: string }
@@ -360,6 +361,35 @@ function prettyIcsDate(v: string) {
 
 const SAFE_SCHEMES = ['http:', 'https:'];
 
+/** The host as a person reads it in the raw text: everything between "//" and the first / ? or #. */
+export function visibleHost(text: string) {
+  const m = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)/i.exec(text);
+  return m ? m[1] : '';
+}
+
+/**
+ * Spot links whose visible address is not where they really go: "user@host" tricks,
+ * look-alike (punycode) characters, backslashes and odd host notations.
+ */
+export function urlWarnings(text: string, u: URL): string[] {
+  const out: string[] = [];
+  const shown = visibleHost(text);
+  const real = u.host;
+  if (/\\/.test(text.split(/[?#]/)[0])) {
+    out.push(`The address contains a backslash, which browsers treat as “/”. This link really goes to ${real}.`);
+  } else if (shown.includes('@')) {
+    const decoy = shown.slice(0, shown.lastIndexOf('@'));
+    out.push(`The address starts with “${decoy}@”, which is not the destination. This link really goes to ${real}.`);
+  } else if (/(^|\.)xn--/i.test(u.hostname)) {
+    out.push(/xn--/i.test(shown)
+      ? `The host ${real} is an internationalized name that may imitate a familiar site once displayed.`
+      : `The host “${shown}” uses look-alike (non-Latin) characters. Its real address is ${real}.`);
+  } else if (shown && shown.toLowerCase().replace(/\.$/, '') !== real && shown.toLowerCase().replace(/\.$/, '').replace(/:(80|443)$/, '') !== real) {
+    out.push(`The address is written as “${shown}” but really goes to ${real}.`);
+  }
+  return out;
+}
+
 export function parse(text: string): Parsed {
   const t = text.trim();
   if (/^WIFI:/i.test(t)) return { kind: 'wifi', ...parseWifi(t) };
@@ -386,12 +416,16 @@ export function parse(text: string): Parsed {
   m = /^tel:([\s\S]+)$/i.exec(t);
   if (m) return { kind: 'phone', number: m[1] };
   m = /^geo:(-?[\d.]+),(-?[\d.]+)[^?]*(?:\?q=([\s\S]*))?$/i.exec(t);
-  if (m) return { kind: 'geo', lat: m[1], lng: m[2], label: safeDecode(m[3] ?? '') };
+  if (m) {
+    const q = safeDecode(m[3] ?? '');
+    const pin = /^\s*-?[\d.]+\s*,\s*-?[\d.]+\s*\(([\s\S]*)\)\s*$/.exec(q);
+    return { kind: 'geo', lat: m[1], lng: m[2], label: pin ? pin[1] : q };
+  }
   if (/^[a-z][a-z0-9+.-]*:\/\/\S+$/i.test(t) || /^www\.\S+\.\S+$/i.test(t)) {
     const href = /^www\./i.test(t) ? 'https://' + t : t;
     try {
       const u = new URL(href);
-      return { kind: 'url', url: href, scheme: u.protocol, host: u.host, safe: SAFE_SCHEMES.includes(u.protocol) };
+      return { kind: 'url', url: href, scheme: u.protocol, host: u.host, safe: SAFE_SCHEMES.includes(u.protocol), warnings: urlWarnings(href, u) };
     } catch {
       /* fall through */
     }

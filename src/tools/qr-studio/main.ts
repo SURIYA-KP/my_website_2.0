@@ -1,6 +1,6 @@
 import { copyText, debounce, downloadBlob, downloadText, escapeHtml, initTabs, setupDropzone, toast } from '../../lib/ui';
 import { encode, KIND_LABEL, parse, TYPES, typeById, type ContentType, type FieldDef, type Parsed, type Values } from './payload';
-import { byteCapacity, createSymbol, styleWarnings, toCanvas, toSvg, type ECL, type Style, type Symbol } from './render';
+import { byteCapacity, createLogoSymbol, createSymbol, LOGO_LOAD_LIMIT, styleWarnings, toCanvas, toSvg, type ECL, type Style, type Symbol } from './render';
 import {
   cameraErrorMessage, cameraSupported, decodeFrame, decodeImage, getNativeDetector, listCameras, loadImage, openCamera,
   type CameraHandle, type Detection, type Point,
@@ -44,8 +44,13 @@ const style: Style = {
 };
 
 export function init() {
+  let listed = false;
   initTabs(document, (_g, name) => {
     if (name !== 'scan') stopCamera();
+    else if (!listed && cameraSupported()) {
+      listed = true;
+      refreshCameraList();
+    }
   });
   initCreate();
   initScan();
@@ -92,9 +97,15 @@ function initCreate() {
     const v = values[type];
     v[id] = el.type === 'checkbox' ? el.checked : el.value;
     if (type === 'event' && id === 'allday') {
+      // Switching to all-day keeps only the dates; switching back restores the earlier times.
       for (const k of ['start', 'end']) {
         const cur = String(v[k] ?? '');
-        v[k] = el.checked ? cur.slice(0, 10) : cur && cur.length === 10 ? `${cur}T09:00` : cur;
+        if (el.checked) {
+          if (cur.length > 10) v[`${k}Time`] = cur.slice(10);
+          v[k] = cur.slice(0, 10);
+        } else if (cur.length === 10) {
+          v[k] = cur + (String(v[`${k}Time`] ?? '') || (k === 'start' ? 'T09:00' : 'T10:00'));
+        }
       }
       renderForm();
     }
@@ -406,8 +417,15 @@ function update() {
   };
 
   if (!payload) return setEmpty(formError || 'Fill in the form to see your code.');
+  let logoInfo: { natural: number; load: number } | null = null;
   try {
-    sym = createSymbol(payload, style.ecl);
+    if (style.logo) {
+      const r = createLogoSymbol(payload, style.logoArea);
+      sym = r.sym;
+      logoInfo = { natural: r.natural, load: r.load };
+    } else {
+      sym = createSymbol(payload, style.ecl);
+    }
   } catch (e) {
     const big = /too big/i.test((e as Error).message);
     const max = byteCapacity(40, style.ecl);
@@ -436,9 +454,15 @@ function update() {
 
   const warns = styleWarnings(style);
   if (sym.version >= 15) warns.push({ level: 'warning', text: `Dense code (version ${sym.version}). Print it at least ${Math.ceil(sym.size * 0.06 + 0.5)} cm wide, or shorten the content.` });
+  if (logoInfo) {
+    const pct = Math.round(logoInfo.load * 100);
+    if (logoInfo.load > 1) warns.push({ level: 'error', text: `The logo hides more than error correction can repair (${pct}% of its budget). Make the logo smaller.` });
+    else if (logoInfo.load > LOGO_LOAD_LIMIT) warns.push({ level: 'warning', text: `The logo uses ${pct}% of the error-correction budget, leaving little margin for smudges or glare. A smaller logo is safer; test-scan before printing.` });
+    if (sym.version > logoInfo.natural) warns.push({ level: 'info', text: `Version raised from ${logoInfo.natural} to ${sym.version} so the code can still be repaired around the logo.` });
+  }
   if (style.module === 'dots' && sym.ecl === 'L') warns.push({ level: 'warning', text: 'Dots with level L leave little room for error. Consider M or higher.' });
   $('qrs-warnings').innerHTML = warns
-    .map((w) => `<li class="alert alert-${w.level === 'error' ? 'error' : 'warning'}"><span aria-hidden="true">${w.level === 'error' ? '✕' : '!'}</span><span>${escapeHtml(w.text)}</span></li>`)
+    .map((w) => `<li class="alert alert-${w.level}" data-level="${w.level}"><span class="qrs-warn-icon" aria-hidden="true">${w.level === 'error' ? '✕' : w.level === 'info' ? 'i' : '!'}</span><span>${escapeHtml(w.text)}</span></li>`)
     .join('');
   $('qrs-print-caption').textContent = payload.length > 300 ? payload.slice(0, 300) + '…' : payload;
 }
@@ -579,6 +603,7 @@ function initScan() {
   });
   $('qrs-result').addEventListener('click', onResultAction);
   window.addEventListener('pagehide', stopCamera);
+  navigator.mediaDevices?.addEventListener?.('devicechange', () => refreshCameraList());
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && cam) {
       stopCamera();
@@ -628,6 +653,9 @@ async function scanBlob(blob: Blob, source: string) {
   }
   showImgMsg(`QR code found (${det.engine}).`, 'success');
   addScan(det.text, source);
+  // On phones the result sits below the image card: bring it into view.
+  const card = $('qrs-result-card');
+  if (card.getBoundingClientRect().top > window.innerHeight - 80) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 
 function drawImagePreview(img: HTMLImageElement, corners: Point[] | null) {
@@ -672,7 +700,9 @@ function renderHistory() {
   list.innerHTML = history
     .map((h) => {
       const label = KIND_LABEL[h.parsed.kind];
-      const preview = h.text.replace(/\s+/g, ' ').slice(0, 120);
+      const p = h.parsed;
+      const friendly = p.kind === 'wifi' ? p.ssid : p.kind === 'vcard' ? p.name : p.kind === 'event' ? p.summary : p.kind === 'geo' ? p.label || `${p.lat}, ${p.lng}` : '';
+      const preview = (friendly || h.text).replace(/\s+/g, ' ').slice(0, 120);
       return `<li><button type="button" data-hid="${h.id}" aria-current="${h.id === currentId}"><span class="badge">${label}</span><span class="qrs-h-text" title="${escapeHtml(preview)}">${escapeHtml(preview)}</span><span class="qrs-h-time">${h.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span></button></li>`;
     })
     .join('');
@@ -693,11 +723,15 @@ function showResult(item: HistoryItem) {
   const p = item.parsed;
   let body = '';
   switch (p.kind) {
-    case 'url':
+    case 'url': {
+      const risky = p.warnings.length > 0;
+      const warn = p.warnings.map((w) => `<div class="alert alert-error qrs-url-warning" role="alert"><strong>Check this link.</strong> ${escapeHtml(w)}</div>`).join('');
       body = `<div class="qrs-result-main mono" id="qrs-result-url">${escapeHtml(p.url)}</div>
-        <div class="qrs-result-sub">Goes to <strong>${escapeHtml(p.host)}</strong>${p.safe ? '' : ` · unusual scheme “${escapeHtml(p.scheme)}”`}. Check the address before opening.</div>
-        <div class="qrs-result-actions">${p.safe ? btn('open', 'Open link', true) : ''}${btn('copy-raw', 'Copy link')}</div>`;
+        <div class="qrs-result-sub">Goes to <strong class="mono" id="qrs-result-host">${escapeHtml(p.host)}</strong>${p.safe ? '' : ` · unusual scheme “${escapeHtml(p.scheme)}”, so it is not offered as a link`}. Nothing opens until you choose to.</div>
+        ${warn}
+        <div class="qrs-result-actions">${p.safe ? btn('open', risky ? 'Open anyway' : 'Open link', !risky, ` title="${escapeHtml(p.url)}"`) : ''}${btn('copy-raw', 'Copy link')}</div>`;
       break;
+    }
     case 'wifi':
       body = `<div class="qrs-result-main">${escapeHtml(p.ssid || '(no name)')}</div>
         ${kv([['Network', p.ssid], ['Security', p.auth === 'nopass' ? 'Open (no password)' : p.auth], ['Password', p.auth === 'nopass' ? '' : p.password], ['Hidden', p.hidden ? 'Yes' : 'No']])}
@@ -744,7 +778,7 @@ function openHref(p: Parsed): string | null {
     case 'email': return `mailto:${encodeURI(p.to)}?subject=${encodeURIComponent(p.subject)}&body=${encodeURIComponent(p.body)}`;
     case 'sms': return `sms:${p.number.replace(/[^\d+*#]/g, '')}${p.message ? `?body=${encodeURIComponent(p.message)}` : ''}`;
     case 'phone': return `tel:${p.number.replace(/[^\d+*#]/g, '')}`;
-    case 'geo': return `geo:${p.lat},${p.lng}${p.label ? `?q=${encodeURIComponent(p.label)}` : ''}`;
+    case 'geo': return `geo:${p.lat},${p.lng}${p.label ? `?q=${p.lat},${p.lng}(${encodeURIComponent(p.label)})` : ''}`;
     default: return null;
   }
 }
@@ -846,7 +880,7 @@ async function startCamera() {
   torch.textContent = 'Torch';
   torch.setAttribute('aria-pressed', 'false');
   setCamState('Scanning');
-  showCamMsg('Point the camera at a QR code. Detected codes are outlined and added below.', 'info');
+  showCamMsg('Point the camera at a QR code. Detected codes are outlined and shown under Result.', 'info');
   refreshCameraList();
   cam.track.addEventListener('ended', () => {
     stopCamera();

@@ -47,6 +47,8 @@ export function byteCapacity(version: number, ecl: ECL) {
 
 export interface Symbol {
   size: number;
+  /** Function-pattern / format-info modules that carry no data. */
+  reserved: (r: number, c: number) => boolean;
   version: number;
   ecl: ECL;
   mask: number;
@@ -56,9 +58,9 @@ export interface Symbol {
   modes: string[];
 }
 
-export function createSymbol(text: string, ecl: ECL): Symbol {
-  const qr = QRCode.create(text, { errorCorrectionLevel: ecl });
-  const { size, data } = qr.modules;
+export function createSymbol(text: string, ecl: ECL, version?: number): Symbol {
+  const qr = QRCode.create(text, version ? { errorCorrectionLevel: ecl, version } : { errorCorrectionLevel: ecl });
+  const { size, data, reservedBit } = qr.modules;
   const v = qr.version;
   const idx = v < 10 ? 0 : v < 27 ? 1 : 2;
   let usedBits = 0;
@@ -72,11 +74,81 @@ export function createSymbol(text: string, ecl: ECL): Symbol {
     version: v,
     ecl,
     mask: qr.maskPattern,
+    reserved: (r, c) => !!reservedBit[r * size + c],
     dark: (r, c) => r >= 0 && c >= 0 && r < size && c < size && !!data[r * size + c],
     usedBits,
     capacityBits: DATA_CODEWORDS[ecl][v - 1] * 8,
     modes: [...modes],
   };
+}
+
+// ---------------------------------------------------------------------------
+// Logo safety: how much of the error-correction budget the covered modules use up
+// ---------------------------------------------------------------------------
+
+/** Level H: error-correction blocks and total EC codewords per version (ISO 18004 table 9). */
+const H_BLOCKS = [1, 1, 2, 4, 4, 4, 5, 6, 8, 8, 11, 11, 16, 16, 18, 16, 19, 21, 25, 25, 25, 34, 30, 32, 35, 37, 40, 42, 45, 48, 51, 54, 57, 60, 63, 66, 70, 74, 77, 81];
+const H_EC = [17, 28, 44, 64, 88, 112, 130, 156, 192, 224, 264, 308, 352, 384, 432, 480, 532, 588, 650, 700, 750, 816, 900, 960, 1050, 1110, 1200, 1260, 1350, 1440, 1530, 1620, 1710, 1800, 1890, 1980, 2100, 2220, 2310, 2430];
+
+/**
+ * Covering modules with a logo destroys every codeword that has a bit underneath it. This maps
+ * the covered modules to codewords (zig-zag placement, then block de-interleaving) and returns the
+ * worst block's damage as a share of what level H can repair (1 = at the limit).
+ */
+export function logoLoad(sym: Symbol, area: number): number {
+  if (sym.ecl !== 'H') return Infinity;
+  const N = sym.size, v = sym.version;
+  const n = logoModules(N, area);
+  const lo = (N - n) / 2, hi = lo + n;
+  const blocks = H_BLOCKS[v - 1], ecTotal = H_EC[v - 1];
+  const total = DATA_CODEWORDS.H[v - 1] + ecTotal;
+  const ecPer = ecTotal / blocks;
+  const g2 = total % blocks, g1 = blocks - g2;
+  const data1 = Math.floor(total / blocks) - ecPer;
+  const dataLen = (b: number) => (b < g1 ? data1 : data1 + 1);
+  // Interleaved codeword order -> block index
+  const owner: number[] = [];
+  for (let i = 0; i < data1 + 1; i++) for (let b = 0; b < blocks; b++) if (i < dataLen(b)) owner.push(b);
+  for (let i = 0; i < ecPer; i++) for (let b = 0; b < blocks; b++) owner.push(b);
+  const hit = new Set<number>();
+  let bit = 0, up = true;
+  for (let col = N - 1; col > 0; col -= 2) {
+    if (col === 6) col--;
+    for (let i = 0; i < N; i++) {
+      const r = up ? N - 1 - i : i;
+      for (let k = 0; k < 2; k++) {
+        const c = col - k;
+        if (sym.reserved(r, c)) continue;
+        const cw = bit++ >> 3;
+        if (cw < total && r >= lo && r < hi && c >= lo && c < hi) hit.add(cw);
+      }
+    }
+    up = !up;
+  }
+  const perBlock = new Array(blocks).fill(0);
+  hit.forEach((cw) => perBlock[owner[cw]]++);
+  const fixable = Math.floor((ecPer - (v === 1 ? 1 : 0)) / 2);
+  return Math.max(...perBlock) / fixable;
+}
+
+/** Share of the repair budget a logo may use: leaves room for smudges, glare and print defects. */
+export const LOGO_LOAD_LIMIT = 0.75;
+
+/**
+ * Level-H symbol for a code with a logo. Starts at the smallest version and steps up (at most 8
+ * versions) until the covered area stays within LOGO_LOAD_LIMIT of what error correction can
+ * repair; if none does, the version with the least damage wins.
+ */
+export function createLogoSymbol(text: string, area: number): { sym: Symbol; natural: number; load: number } {
+  const first = createSymbol(text, 'H');
+  const natural = first.version;
+  let best = { sym: first, load: logoLoad(first, area) };
+  for (let v = natural + 1; best.load > LOGO_LOAD_LIMIT && v <= Math.min(40, natural + 8); v++) {
+    const sym = createSymbol(text, 'H', v);
+    const load = logoLoad(sym, area);
+    if (load < best.load - 1e-9) best = { sym, load };
+  }
+  return { ...best, natural };
 }
 
 // ---------------------------------------------------------------------------
@@ -107,9 +179,31 @@ function circle(cx: number, cy: number, r: number) {
 export interface Geometry {
   total: number; // viewBox size in modules (incl. margin)
   modules: string;
+  align: string; // solid alignment patterns (even-odd), empty for square modules
   eyeOuter: string; // even-odd ring
   eyeInner: string;
   logoBox: { x: number; y: number; size: number } | null;
+}
+
+/** Centres of the alignment patterns for a QR version (ISO 18004 Annex E), excluding those under the finders. */
+export function alignmentCentres(version: number): [number, number][] {
+  if (version < 2) return [];
+  const size = version * 4 + 17;
+  const count = Math.floor(version / 7) + 2;
+  const step = size === 145 ? 26 : Math.ceil((size - 13) / (2 * count - 2)) * 2;
+  const pos = [size - 7];
+  for (let i = 1; i < count - 1; i++) pos.push(pos[i - 1] - step);
+  pos.push(6);
+  pos.reverse();
+  const out: [number, number][] = [];
+  const last = pos.length - 1;
+  for (let i = 0; i <= last; i++) {
+    for (let j = 0; j <= last; j++) {
+      if ((i === 0 && j === 0) || (i === 0 && j === last) || (i === last && j === 0)) continue;
+      out.push([pos[i], pos[j]]);
+    }
+  }
+  return out;
 }
 
 export function logoModules(size: number, area: number) {
@@ -133,7 +227,14 @@ export function buildGeometry(sym: Symbol, style: Style): Geometry {
     logoBox = { x: lo + m, y: lo + m, size: n };
   }
   const inLogo = (r: number, c: number) => r >= lo && r < hi && c >= lo && c < hi;
-  const on = (r: number, c: number) => sym.dark(r, c) && !inFinder(r, c) && !inLogo(r, c);
+  // Decorative module shapes leave gaps that make the small alignment patterns hard to find, so
+  // those are drawn as solid shapes (like the finder eyes) whenever modules are not plain squares.
+  const solidAlign = style.module !== 'square';
+  const aligns = solidAlign
+    ? alignmentCentres(sym.version).filter(([ar, ac]) => !(ar + 2 >= lo && ar - 2 < hi && ac + 2 >= lo && ac - 2 < hi))
+    : [];
+  const inAlign = (r: number, c: number) => aligns.some(([ar, ac]) => Math.abs(r - ar) <= 2 && Math.abs(c - ac) <= 2);
+  const on = (r: number, c: number) => sym.dark(r, c) && !inFinder(r, c) && !inLogo(r, c) && !inAlign(r, c);
 
   const parts: string[] = [];
   for (let r = 0; r < N; r++) {
@@ -183,7 +284,15 @@ export function buildGeometry(sym: Symbol, style: Style): Geometry {
     }
   }
 
-  return { total, modules: parts.join(''), eyeOuter: outer.join(''), eyeInner: inner.join(''), logoBox };
+  const roundAlign = style.eye !== 'square';
+  const align: string[] = [];
+  for (const [ar, ac] of aligns) {
+    const x = ac - 2 + m, y = ar - 2 + m;
+    const R = roundAlign ? 1.4 : 0, r = roundAlign ? 0.7 : 0, k = roundAlign ? 0.5 : 0;
+    align.push(rrect(x, y, 5, 5, [R, R, R, R]) + rrect(x + 1, y + 1, 3, 3, [r, r, r, r]) + rrect(x + 2, y + 2, 1, 1, [k, k, k, k]));
+  }
+
+  return { total, modules: parts.join(''), align: align.join(''), eyeOuter: outer.join(''), eyeInner: inner.join(''), logoBox };
 }
 
 function gradCoords(type: GradType, m: number, N: number) {
@@ -227,6 +336,7 @@ export function toSvg(sym: Symbol, style: Style, px = 512, title = 'QR code'): s
   if (defs.length) out.push(`<defs>${defs.join('')}</defs>`);
   if (!style.transparent) out.push(`<rect width="${T}" height="${T}" fill="${esc(style.bg)}"/>`);
   out.push(`<path d="${g.modules}" fill="${fill}"/>`);
+  if (g.align) out.push(`<path d="${g.align}" fill="${fill}" fill-rule="evenodd"/>`);
   out.push(`<path d="${g.eyeOuter}" fill="${eyeFill}" fill-rule="evenodd"/>`);
   out.push(`<path d="${g.eyeInner}" fill="${eyeFill}"/>`);
   if (style.logo && g.logoBox) {
@@ -267,6 +377,7 @@ export function toCanvas(sym: Symbol, style: Style, px: number): HTMLCanvasEleme
   }
   ctx.fillStyle = paint;
   ctx.fill(new Path2D(g.modules));
+  if (g.align) ctx.fill(new Path2D(g.align), 'evenodd');
   ctx.fillStyle = style.eyeColor ?? paint;
   ctx.fill(new Path2D(g.eyeOuter), 'evenodd');
   ctx.fill(new Path2D(g.eyeInner));
@@ -312,7 +423,7 @@ export function contrast(a: string, b: string) {
 }
 
 export interface Warning {
-  level: 'warning' | 'error';
+  level: 'info' | 'warning' | 'error';
   text: string;
 }
 
@@ -329,6 +440,5 @@ export function styleWarnings(style: Style): Warning[] {
   }
   if (style.transparent) w.push({ level: 'warning', text: 'Transparent background: make sure it is placed on a light, plain surface.' });
   if (style.margin < 2) w.push({ level: 'warning', text: `Quiet zone of ${style.margin} module${style.margin === 1 ? '' : 's'}. Leave at least 2 (4 is the standard) so scanners can find the code.` });
-  if (style.logo && style.logoArea > 0.16) w.push({ level: 'warning', text: 'Large logo. Test-scan the code before printing it.' });
   return w;
 }
