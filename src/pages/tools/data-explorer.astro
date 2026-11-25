@@ -1,6 +1,519 @@
 ---
 import ToolLayout from '../../layouts/ToolLayout.astro';
+
+const i = {
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  upload: '<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>',
+  file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+  paste: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>',
+  table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/>',
+  chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  sql: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  cols: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/>',
+  download: '<path d="M12 3v12M7 10l5 5 5-5M4 19h16"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  play: '<path d="M7 4v16l13-8z"/>',
+  back: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  spark: '<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/>',
+  use: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>',
+};
+const ico = (d: string, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const samples = [
+  { id: 'sales', label: 'Sales orders', detail: '2,000 orders · dates, regions, revenue' },
+  { id: 'weather', label: 'Daily weather', detail: '4 cities × 366 days of readings' },
+  { id: 'traffic', label: 'Web sessions', detail: '3,000 visits with timestamps' },
+];
+const delims = [
+  ['auto', 'Auto-detect'], [',', 'Comma ,'], [';', 'Semicolon ;'], ['\t', 'Tab'], ['|', 'Pipe |'], [':', 'Colon :'], [' ', 'Space'],
+];
 ---
-<ToolLayout slug="data-explorer">
-  <div class="card"><p class="muted">Coming soon.</p></div>
+<ToolLayout slug="data-explorer" wide allowEval>
+  <div class="dx" id="dx">
+    <p class="dx-privacy">
+      <Fragment set:html={ico(i.lock)} />
+      <span><strong>Your data never leaves this device.</strong> Files are parsed, charted and queried by your browser. Nothing is uploaded, so it is safe for customer lists, finances and private exports.</span>
+    </p>
+
+    <div class="alert alert-error dx-error" id="dx-error" role="alert" hidden></div>
+
+    <div class="dx-progress" id="dx-progress" hidden>
+      <div class="dx-progress-top">
+        <span class="dx-progress-label small" id="dx-progress-label" aria-live="polite">Reading…</span>
+        <span class="small muted dx-progress-pct" id="dx-progress-pct">0%</span>
+        <button type="button" class="btn btn-sm btn-ghost" id="dx-cancel">Cancel</button>
+      </div>
+      <div class="dx-progress-track" role="progressbar" aria-label="Loading progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="dx-progress-bar"></span></div>
+    </div>
+
+    <section class="dx-empty" id="dx-empty" aria-label="Open a dataset">
+      <div class="dropzone dx-drop" id="dx-drop" aria-label="Open a data file: drop it here or press Enter to choose">
+        <span class="dx-drop-icon"><Fragment set:html={ico(i.upload, 30)} /></span>
+        <strong class="dx-drop-title">Drop a CSV, TSV or JSON file here</strong>
+        <span class="dx-drop-sub">or <u>choose a file</u> · any delimiter, JSON arrays, NDJSON · large files welcome</span>
+        <span class="dx-drop-over">Drop to open the file</span>
+      </div>
+      <div class="dx-empty-side">
+        <div>
+          <h2 class="dx-side-h">Try a sample dataset</h2>
+          <div class="dx-samples">
+            {samples.map((s) => (
+              <button type="button" class="dx-sample" data-sample={s.id}>
+                <span class="dx-sample-icon"><Fragment set:html={ico(i.table, 18)} /></span>
+                <span class="dx-sample-text"><b>{s.label}</b><span>{s.detail}</span></span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <button type="button" class="btn dx-paste-open" id="dx-paste-open"><Fragment set:html={ico(i.paste)} />Paste data from the clipboard</button>
+        <ul class="dx-features">
+          <li><span><b>Sort, filter and search</b> hundreds of thousands of rows</span></li>
+          <li><span><b>Profile</b> every column: types, missing values, distributions</span></li>
+          <li><span><b>Chart</b> bars, lines, scatter, histograms and pies</span></li>
+          <li><span><b>Query with SQL</b>, then export CSV or JSON</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <div class="dx-work" id="dx-work">
+      <div class="dx-dsbar">
+        <div class="dx-ds-info">
+          <span class="dx-ds-icon"><Fragment set:html={ico(i.table, 18)} /></span>
+          <div class="dx-ds-text">
+            <strong id="dx-ds-name" class="dx-ds-name">Dataset</strong>
+            <span id="dx-ds-meta" class="small muted"></span>
+          </div>
+        </div>
+        <div class="dx-parse-opts" id="dx-parse-opts">
+          <label class="dx-inline-field"><span class="small muted">Delimiter</span>
+            <select class="select dx-delim" id="dx-delim">{delims.map(([v, l]) => <option value={v}>{l}</option>)}</select>
+          </label>
+          <label class="checkbox small"><input type="checkbox" id="dx-header" checked />First row is the header</label>
+        </div>
+        <div class="dx-ds-actions">
+          <button type="button" class="btn btn-sm" id="dx-back" hidden><Fragment set:html={ico(i.back, 15)} /><span>Back</span></button>
+          <button type="button" class="btn btn-sm" id="dx-open"><Fragment set:html={ico(i.file, 15)} />Open file</button>
+          <button type="button" class="btn btn-sm" id="dx-paste-btn"><Fragment set:html={ico(i.paste, 15)} />Paste</button>
+          <select class="select dx-sample-sel" id="dx-sample-sel" aria-label="Load a sample dataset">
+            <option value="">Samples…</option>
+            {samples.map((s) => <option value={s.id}>{s.label}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div class="alert alert-warning dx-warn" id="dx-warn" hidden></div>
+
+      <div class="tabs dx-tabs" role="tablist" data-tabs="dx" aria-label="Views">
+        <button type="button" class="tab" role="tab" data-tab="table" aria-selected="true" aria-controls="dx-tab-table"><Fragment set:html={ico(i.table, 15)} />Table</button>
+        <button type="button" class="tab" role="tab" data-tab="chart" aria-selected="false" aria-controls="dx-chart-panel"><Fragment set:html={ico(i.chart, 15)} />Chart</button>
+        <button type="button" class="tab" role="tab" data-tab="sql" aria-selected="false" aria-controls="dx-tab-sql"><Fragment set:html={ico(i.sql, 15)} />SQL</button>
+      </div>
+
+      <!-- ============ Table ============ -->
+      <section class="dx-panel" id="dx-tab-table" data-tabpanel="dx:table" role="tabpanel" aria-label="Table">
+        <div class="dx-toolbar">
+          <label class="dx-search">
+            <Fragment set:html={ico(i.search, 15)} />
+            <span class="sr-only">Search all columns</span>
+            <input class="input" type="search" id="dx-search" placeholder="Search all columns…" autocomplete="off" spellcheck="false" />
+          </label>
+          <button type="button" class="btn btn-sm" id="dx-cols-btn" aria-haspopup="dialog" aria-expanded="false"><Fragment set:html={ico(i.cols, 15)} />Columns <span class="dx-cols-n faint" id="dx-cols-n"></span></button>
+          <label class="dx-inline-field"><span class="small muted">Numbers</span>
+            <select class="select dx-numfmt" id="dx-numfmt">
+              <option value="auto">1,234.5678</option>
+              <option value="fixed2">1,234.57</option>
+              <option value="raw">1234.5678</option>
+            </select>
+          </label>
+          <button type="button" class="btn btn-sm btn-ghost" id="dx-clear" hidden><Fragment set:html={ico(i.x, 14)} />Clear filters</button>
+          <span class="dx-count small" id="dx-count" aria-live="polite"></span>
+          <div class="btn-group dx-export" role="group" aria-label="Export rows">
+            <button type="button" class="btn btn-sm" id="dx-exp-csv" title="Download the filtered, sorted rows as CSV"><Fragment set:html={ico(i.download, 14)} />CSV</button>
+            <button type="button" class="btn btn-sm" id="dx-exp-json" title="Download the filtered, sorted rows as JSON">JSON</button>
+          </div>
+        </div>
+        <div class="dx-chips" id="dx-chips" aria-label="Active filters" hidden></div>
+        <div class="dx-table-layout">
+          <div class="dx-grid-host" id="dx-grid" aria-label="Data table"></div>
+          <aside class="dx-profile" aria-label="Column profile">
+            <div class="dx-prof-top">
+              <label class="sr-only" for="dx-prof-col">Profile column</label>
+              <select class="select dx-prof-sel" id="dx-prof-col"></select>
+              <button type="button" class="btn btn-sm btn-icon" id="dx-prof-chart" title="Chart this column" aria-label="Chart this column"><Fragment set:html={ico(i.chart, 15)} /></button>
+            </div>
+            <div class="dx-prof-body" id="dx-prof-body" aria-live="polite"></div>
+          </aside>
+        </div>
+        <p class="dx-hint small faint">
+          <span class="dx-hint-mouse">Click a header to sort, <kbd>Shift</kbd>+click to sort by several columns · funnel icon filters a column · click a cell to profile its column.</span>
+          <span class="dx-hint-touch">Tap a header to sort · tap the funnel to filter · tap a cell to profile its column · swipe the table sideways for more columns.</span>
+        </p>
+      </section>
+
+      <!-- ============ Chart ============ -->
+      <section class="dx-panel dx-chart-panel" id="dx-chart-panel" data-tabpanel="dx:chart" role="tabpanel" aria-label="Chart" hidden>
+        <div class="dx-ch-types btn-group" role="group" aria-label="Chart type">
+          <button type="button" class="btn btn-sm" data-ctype="bar" aria-pressed="true">Bar</button>
+          <button type="button" class="btn btn-sm" data-ctype="line" aria-pressed="false">Line</button>
+          <button type="button" class="btn btn-sm" data-ctype="scatter" aria-pressed="false">Scatter</button>
+          <button type="button" class="btn btn-sm" data-ctype="histogram" aria-pressed="false">Histogram</button>
+          <button type="button" class="btn btn-sm" data-ctype="pie" aria-pressed="false">Pie</button>
+          <button type="button" class="btn btn-sm" data-ctype="doughnut" aria-pressed="false">Doughnut</button>
+        </div>
+        <div class="dx-ch-controls">
+          <label class="field" data-f="x"><span class="label">X axis</span><select class="select" id="dx-ch-x"></select></label>
+          <label class="field" data-f="y"><span class="label">Y axis</span><select class="select" id="dx-ch-y"></select></label>
+          <label class="field" data-f="agg"><span class="label">Aggregate</span>
+            <select class="select" id="dx-ch-agg">
+              <option value="sum">Sum</option><option value="mean">Mean</option><option value="count">Count</option><option value="min">Min</option><option value="max">Max</option>
+            </select>
+          </label>
+          <label class="field" data-f="group"><span class="label">Group by</span><select class="select" id="dx-ch-group"></select></label>
+          <label class="field" data-f="bucket"><span class="label">Date step</span>
+            <select class="select" id="dx-ch-bucket">
+              <option value="auto">Auto</option><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option><option value="quarter">Quarter</option><option value="year">Year</option>
+            </select>
+          </label>
+          <label class="field" data-f="bins"><span class="label">Bins</span>
+            <select class="select" id="dx-ch-bins">
+              <option value="0">Auto</option><option value="10">10</option><option value="20">20</option><option value="30">30</option><option value="50">50</option><option value="100">100</option>
+            </select>
+          </label>
+          <label class="field" data-f="limit"><span class="label">Max categories</span>
+            <select class="select" id="dx-ch-limit">
+              <option value="10">10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="500">500</option>
+            </select>
+          </label>
+          <label class="field" data-f="sort"><span class="label">Order</span>
+            <select class="select" id="dx-ch-sort"><option value="value">Largest first</option><option value="label">By label</option></select>
+          </label>
+        </div>
+        <div class="alert alert-info dx-ch-error" id="dx-ch-error" role="status" hidden></div>
+        <div class="dx-chart-box"><canvas id="dx-chart" role="img" aria-label="Chart"></canvas></div>
+        <div class="dx-ch-foot">
+          <p class="small muted dx-ch-note" id="dx-ch-note" aria-live="polite"></p>
+          <button type="button" class="btn btn-sm" id="dx-ch-png"><Fragment set:html={ico(i.image, 14)} />Download PNG</button>
+        </div>
+      </section>
+
+      <!-- ============ SQL ============ -->
+      <section class="dx-panel dx-sql-panel" id="dx-tab-sql" data-tabpanel="dx:sql" role="tabpanel" aria-label="SQL" hidden>
+        <div class="dx-sql-layout">
+          <div class="dx-sql-main">
+            <label class="label" for="dx-sql">Query <span class="faint">· the table is called <code>data</code></span></label>
+            <textarea class="textarea code-input dx-sql-input" id="dx-sql" rows="7" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="dx-sql-quote"></textarea>
+            <div class="dx-sql-bar">
+              <button type="button" class="btn btn-primary btn-sm" id="dx-sql-run"><Fragment set:html={ico(i.play, 13)} />Run <kbd class="dx-kbd">Ctrl+Enter</kbd></button>
+              <label class="checkbox small"><input type="checkbox" id="dx-sql-filtered" /><span id="dx-sql-filtered-label">Only the filtered rows</span></label>
+              <span class="dx-sql-status small muted" id="dx-sql-status" aria-live="polite"></span>
+            </div>
+            <div class="dx-sql-examples-wrap">
+              <span class="small muted">Examples:</span>
+              <div class="dx-sql-examples" id="dx-sql-examples"></div>
+            </div>
+          </div>
+          <aside class="dx-sql-side">
+            <p class="label">Columns <span class="faint">· click to insert</span></p>
+            <div class="dx-sql-cols" id="dx-sql-cols"></div>
+            <p class="small muted dx-sql-quote" id="dx-sql-quote"></p>
+          </aside>
+        </div>
+        <div class="alert alert-error dx-sql-error" id="dx-sql-error" role="alert" hidden></div>
+        <div class="dx-sql-out" id="dx-sql-out" hidden>
+          <div class="dx-sql-out-bar">
+            <strong class="small">Result</strong>
+            <span class="grow"></span>
+            <button type="button" class="btn btn-sm btn-primary" id="dx-sql-use" title="Explore, filter and chart the query result"><Fragment set:html={ico(i.use, 14)} />Use as dataset</button>
+            <div class="btn-group" role="group" aria-label="Export result">
+              <button type="button" class="btn btn-sm" id="dx-sql-csv"><Fragment set:html={ico(i.download, 14)} />CSV</button>
+              <button type="button" class="btn btn-sm" id="dx-sql-json">JSON</button>
+            </div>
+          </div>
+          <div class="dx-grid-host dx-sql-grid" id="dx-sql-grid" aria-label="Query result"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="dx-pop" id="dx-pop" role="dialog" hidden></div>
+
+    <dialog class="dx-dialog" id="dx-paste" aria-labelledby="dx-paste-h">
+      <div class="dx-dialog-head">
+        <h2 id="dx-paste-h">Paste data</h2>
+        <button type="button" class="btn btn-icon btn-ghost" id="dx-paste-cancel" aria-label="Close"><Fragment set:html={ico(i.x)} /></button>
+      </div>
+      <div class="dx-dialog-body">
+        <label class="sr-only" for="dx-paste-text">Data to load</label>
+        <textarea class="textarea code-input dx-paste-text" id="dx-paste-text" rows="10" spellcheck="false" placeholder={'name,city,score\nAda,London,92\nLinus,Helsinki,88\n\nCSV, TSV, any delimiter, a JSON array or NDJSON.'}></textarea>
+        <div class="dx-paste-opts">
+          <label class="dx-inline-field"><span class="small muted">Delimiter</span>
+            <select class="select dx-delim" id="dx-paste-delim">{delims.map(([v, l]) => <option value={v}>{l}</option>)}</select>
+          </label>
+          <label class="checkbox small"><input type="checkbox" id="dx-paste-header" checked />First row is the header</label>
+          <span class="grow"></span>
+          <button type="button" class="btn btn-primary" id="dx-paste-load">Load data</button>
+        </div>
+      </div>
+    </dialog>
+  </div>
 </ToolLayout>
+
+<script>
+  import { init } from '../../tools/data-explorer/main';
+  init();
+</script>
+
+<style is:global>
+  .dx { display: flex; flex-direction: column; gap: 12px; }
+  .dx-privacy { display: flex; gap: 10px; align-items: flex-start; margin: 0; padding: 10px 14px; border-radius: var(--radius); background: var(--success-soft); color: var(--text); font-size: 0.875rem; line-height: 1.45; border: 1px solid color-mix(in srgb, var(--success) 25%, transparent); }
+  .dx-privacy svg { flex: none; color: var(--success); margin-top: 2px; }
+  .dx-privacy strong { color: var(--success); }
+  .dx .dx-error, .dx .dx-warn { margin: 0; }
+  .dx-warn ul { margin: 4px 0 0; padding-left: 18px; }
+  .dx kbd, .dx .dx-kbd { font-family: var(--font-mono); font-size: 0.75em; padding: 1px 5px; border-radius: 4px; border: 1px solid var(--border-strong); background: var(--bg-sunken); color: var(--text-muted); }
+  .dx .btn { gap: 6px; }
+
+  /* ---------- Progress ---------- */
+  .dx-progress { padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elev); display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow-sm); }
+  .dx-progress-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .dx-progress-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .dx-progress-pct { font-variant-numeric: tabular-nums; }
+  .dx-progress-track { height: 6px; border-radius: 3px; background: var(--bg-sunken); overflow: hidden; }
+  .dx-progress-track span { display: block; height: 100%; width: 3%; background: var(--accent); border-radius: 3px; transition: width 0.15s; }
+
+  /* ---------- Empty state ---------- */
+  .dx-empty { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); gap: 16px; align-items: stretch; }
+  .dx-drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 320px; padding: 32px 20px; text-align: center; cursor: pointer; }
+  .dx-drop:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .dx-drop-icon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); margin-bottom: 4px; }
+  .dx-drop-title { font-size: 1.15rem; }
+  .dx-drop-sub { color: var(--text-muted); font-size: 0.9rem; }
+  .dx-drop-sub u { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .dx-drop-over { display: none; font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+  .dx-empty-side { display: flex; flex-direction: column; gap: 14px; padding: 18px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+  .dx-side-h { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin: 0 0 8px; }
+  .dx-samples { display: flex; flex-direction: column; gap: 6px; }
+  .dx-sample { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: border-color 0.12s, background 0.12s; }
+  .dx-sample:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .dx-sample-icon { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); }
+  .dx-sample-text { display: flex; flex-direction: column; min-width: 0; }
+  .dx-sample-text b { font-weight: 600; font-size: 0.92rem; }
+  .dx-sample-text span { font-size: 0.8rem; color: var(--text-muted); }
+  .dx-paste-open { align-self: stretch; justify-content: center; }
+  .dx-features { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 0.875rem; color: var(--text-muted); }
+  .dx-features li { display: flex; gap: 8px; align-items: baseline; }
+  .dx-features li::before { content: ''; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); transform: translateY(-2px); }
+  .dx-features b { color: var(--text); font-weight: 600; }
+
+  .dx-has-data .dx-empty { display: contents; }
+  .dx-has-data .dx-empty-side { display: none; }
+  .dx-has-data .dx-drop:not(.is-dragover) { display: none; }
+  .dx-has-data .dx-drop.is-dragover { position: fixed; inset: 12px; z-index: 200; min-height: 0; border-width: 3px; background: color-mix(in srgb, var(--accent-soft) 92%, transparent); backdrop-filter: blur(3px); }
+  .dx-has-data .dx-drop.is-dragover > :not(.dx-drop-over, .dx-drop-icon) { display: none; }
+  .dx-has-data .dx-drop.is-dragover .dx-drop-over { display: block; }
+  .dx:not(.dx-has-data) .dx-work { display: none; }
+  .dx-busy:not(.dx-has-data) .dx-empty { opacity: 0.55; pointer-events: none; }
+
+  /* ---------- Dataset bar ---------- */
+  .dx-work { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .dx-dsbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; padding: 10px 12px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); }
+  .dx-ds-info { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 260px; }
+  .dx-ds-icon { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); }
+  .dx-ds-text { display: flex; flex-direction: column; min-width: 0; }
+  .dx-ds-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dx-parse-opts { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .dx-ds-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .dx .dx-inline-field { display: inline-flex; align-items: center; gap: 6px; }
+  .dx .dx-inline-field .select { width: auto; height: 28px; font-size: 0.82rem; padding: 0 26px 0 8px; }
+  .dx .dx-sample-sel { width: auto; height: 28px; font-size: 0.8rem; padding: 0 26px 0 8px; }
+
+  /* ---------- Tabs + table toolbar ---------- */
+  .dx .dx-tabs { margin-top: 2px; }
+  .dx .dx-tabs .tab { display: inline-flex; align-items: center; gap: 7px; }
+  .dx-panel { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .dx-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .dx-search { position: relative; flex: 0 1 300px; min-width: 180px; display: block; }
+  .dx-search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-faint); pointer-events: none; }
+  .dx .dx-search .input { padding-left: 32px; height: 32px; }
+  .dx-count { margin-left: auto; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .dx-count b { color: var(--text); font-weight: 600; }
+  .dx-count.is-filtered b:first-child { color: var(--accent); }
+  .dx-cols-n:empty { display: none; }
+  .dx-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dx-chip { display: inline-flex; align-items: center; max-width: 100%; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); background: var(--accent-soft); color: var(--text); border-radius: 999px; font-size: 0.8rem; overflow: hidden; }
+  .dx-chip > span, .dx-chip-edit { padding: 3px 4px 3px 10px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dx-chip-edit { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+  .dx-chip b { color: var(--accent); font-weight: 600; }
+  .dx-chip-x { flex: none; border: 0; background: none; color: var(--text-muted); font-size: 1rem; line-height: 1; padding: 3px 9px 4px 5px; cursor: pointer; }
+  .dx-chip-x:hover { color: var(--danger); }
+
+  /* ---------- Grid ---------- */
+  .dx-table-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; align-items: stretch; }
+  .dx-grid-wrap { position: relative; min-width: 0; height: clamp(360px, calc(100vh - 330px), 760px); border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elev); overflow: hidden; }
+  .dx-grid { position: absolute; inset: 0; overflow: auto; font-size: 13px; font-variant-numeric: tabular-nums; overscroll-behavior: contain; outline: none; }
+  .dx-grid:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+  .dx-head { position: sticky; top: 0; z-index: 3; width: max-content; min-width: 100%; background: var(--bg-sunken); }
+  .dx-body { position: relative; } /* no overflow here: it would break the sticky row-number column */
+  .dx-body .dx-row { position: absolute; top: 0; left: 0; will-change: transform; }
+  .dx-row { display: flex; height: 30px; }
+  .dx-row.is-odd .dx-cell { background: color-mix(in srgb, var(--bg-sunken) 45%, var(--bg-elev)); }
+  .dx-body .dx-row:hover .dx-cell { background: var(--bg-hover); }
+  .dx-cell { flex: none; box-sizing: border-box; height: 30px; padding: 0 10px; line-height: 29px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 1px solid var(--border); border-right: 1px solid color-mix(in srgb, var(--border) 60%, transparent); background: var(--bg-elev); color: var(--text); }
+  .dx-cell.dx-right { text-align: right; }
+  .dx-cell.dx-null { color: var(--text-faint); }
+  .dx-cell.is-selected { box-shadow: inset 0 0 0 2px var(--accent); }
+  .dx-num { position: sticky; left: 0; z-index: 1; text-align: right; color: var(--text-faint); font-size: 12px; background: var(--bg-sunken) !important; border-right: 1px solid var(--border); }
+  .dx-hrow { height: 36px; }
+  .dx-hrow .dx-cell { height: 36px; line-height: 35px; background: var(--bg-sunken); border-bottom: 1px solid var(--border-strong); font-weight: 600; }
+  .dx-hcell { position: relative; display: flex; align-items: center; padding: 0 0 0 2px; }
+  .dx-hcell.is-sorted { color: var(--accent); }
+  .dx-hbtn { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; height: 100%; padding: 0 4px 0 8px; border: 0; background: none; color: inherit; font: inherit; font-weight: 600; cursor: pointer; text-align: left; }
+  .dx-hcell.dx-right .dx-hbtn { flex-direction: row-reverse; text-align: right; }
+  .dx-hbtn:hover { color: var(--accent); }
+  .dx-hbtn:focus-visible, .dx-fbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px; }
+  .dx-hname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dx-sort { flex: none; font-size: 0.7rem; color: var(--accent); }
+  .dx-sort sub { font-size: 0.62rem; margin-left: 1px; }
+  .dx-tico { flex: none; display: inline-grid; place-items: center; min-width: 20px; height: 17px; padding: 0 3px; border-radius: 4px; font-size: 10px; font-weight: 700; font-family: var(--font-mono); line-height: 1; background: var(--bg-elev); color: var(--text-muted); border: 1px solid var(--border); }
+  .dx-t-integer, .dx-t-float { color: var(--c2); }
+  .dx-t-date { color: var(--c3); }
+  .dx-t-boolean { color: var(--c6); }
+  .dx-t-string { color: var(--c1); }
+  .dx-fbtn { flex: none; display: grid; place-items: center; width: 24px; height: 24px; margin-right: 6px; border: 0; border-radius: 5px; background: none; color: var(--text-faint); cursor: pointer; }
+  .dx-fbtn:hover { background: var(--bg-hover); color: var(--text); }
+  .dx-fbtn.is-active { background: var(--accent); color: var(--accent-text); }
+  .dx-resize { position: absolute; right: -4px; top: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 2; touch-action: none; }
+  .dx-resize:hover { background: color-mix(in srgb, var(--accent) 35%, transparent); }
+  .dx-noresults { position: absolute; left: 0; right: 0; top: 36px; bottom: 0; display: grid; place-content: center; text-align: center; padding: 20px; pointer-events: none; }
+  .dx-noresults p { margin: 0 0 6px; }
+  .dx-noresults .btn { pointer-events: auto; }
+  .dx-hint { margin: 0; }
+  .dx-hint-touch { display: none; }
+  @media (hover: none) and (pointer: coarse) { .dx-hint-touch { display: inline; } .dx-hint-mouse { display: none; } }
+
+  /* ---------- Profile ---------- */
+  .dx-profile { min-width: 0; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elev); height: clamp(360px, calc(100vh - 330px), 760px); overflow: hidden; }
+  .dx-prof-top { display: flex; gap: 6px; padding: 8px; border-bottom: 1px solid var(--border); background: var(--bg-sunken); }
+  .dx .dx-prof-sel { flex: 1; min-width: 0; width: auto; height: 30px; padding: 0 26px 0 8px; font-size: 0.85rem; }
+  .dx .dx-prof-top .btn-icon { width: 30px; height: 30px; flex: none; }
+  .dx-prof-body { flex: 1; overflow: auto; padding: 12px; font-size: 0.85rem; }
+  .dx-prof-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .dx-prof-name { margin: 0; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dx-prof-type { flex: none; }
+  .dx-prof-scope { margin: 2px 0 10px; }
+  .dx-prof-vis { margin: 0 0 4px; }
+  .dx-prof-vis + .dx-prof-sub { margin-top: 10px; }
+  .dx-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0; }
+  .dx-stat { padding: 5px 8px; border-radius: var(--radius-sm); background: var(--bg-sunken); min-width: 0; }
+  .dx-stat dt { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); font-weight: 600; }
+  .dx-stat dd { margin: 1px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .dx-stat dd .faint { font-weight: 400; }
+  .dx-prof-sub { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 14px 0 6px; }
+  .dx-hist { display: flex; align-items: flex-end; gap: 1px; height: 84px; padding: 4px 0 0; border-bottom: 1px solid var(--border-strong); }
+  .dx-hbar { flex: 1; min-width: 0; background: var(--accent); opacity: 0.8; border-radius: 2px 2px 0 0; }
+  .dx-hbar:hover { opacity: 1; }
+  .dx-hist-axis { display: flex; justify-content: space-between; gap: 8px; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .dx-top { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+  .dx-top li { position: relative; display: flex; justify-content: space-between; gap: 8px; padding: 3px 6px; border-radius: 4px; overflow: hidden; }
+  .dx-top-bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent-soft); z-index: 0; }
+  .dx-top-val, .dx-top-n { position: relative; z-index: 1; }
+  .dx-top-val { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dx-top-n { flex: none; font-variant-numeric: tabular-nums; }
+  .dx-top-other { margin: 6px 0 0; }
+
+  /* ---------- Popover ---------- */
+  .dx-pop { position: fixed; z-index: 150; width: 300px; max-width: calc(100vw - 16px); max-height: min(480px, calc(100vh - 24px)); display: flex; flex-direction: column; background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: var(--radius); box-shadow: var(--shadow-lg); overflow: hidden; }
+  .dx-pop-content { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+  .dx-pop-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
+  .dx-pop-head strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dx-pop-col { color: var(--accent); }
+  .dx-pop-body { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; overflow: auto; min-height: 0; }
+  .dx-pop-hint { margin: 0; }
+  .dx-pop-range { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .dx-pop-modes { display: flex; }
+  .dx-pop-modes .btn { flex: 1; }
+  .dx-pop-text, .dx-pop-set { display: flex; flex-direction: column; gap: 6px; }
+  .dx-pick-actions { display: flex; gap: 4px; }
+  .dx-pick-list { display: flex; flex-direction: column; max-height: 240px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 2px; }
+  .dx-pick { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 4px; font-size: 0.85rem; cursor: pointer; }
+  .dx-pick:hover { background: var(--bg-hover); }
+  .dx-pick input { accent-color: var(--accent); width: 15px; height: 15px; flex: none; }
+  .dx-pick-v { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dx-pick-n { flex: none; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+  .dx-pop-foot { display: flex; justify-content: space-between; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border); background: var(--bg-sunken); }
+
+  /* ---------- Chart ---------- */
+  .dx-ch-types { flex-wrap: wrap; }
+  .dx-ch-controls { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px 10px; }
+  .dx .dx-ch-controls .select { height: 32px; padding: 0 28px 0 10px; font-size: 0.85rem; }
+  .dx .dx-ch-error { margin: 0; }
+  .dx-chart-box { position: relative; height: clamp(320px, calc(100vh - 380px), 560px); padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elev); }
+  .dx-chart-box.is-loading::after { content: 'Loading chart…'; position: absolute; inset: 0; display: grid; place-items: center; color: var(--text-muted); font-size: 0.9rem; }
+  .dx-chart-box canvas { display: block; width: 100%; height: 100%; }
+  .dx-ch-foot { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .dx-ch-note { margin: 0; flex: 1 1 260px; }
+
+  /* ---------- SQL ---------- */
+  .dx-sql-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; }
+  .dx-sql-main { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .dx-sql-main > .label { margin: 0; }
+  .dx .dx-sql-input { min-height: 150px; font-size: 13px; line-height: 1.55; white-space: pre; overflow: auto; }
+  .dx-sql-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
+  .dx-sql-bar .dx-kbd { background: transparent; color: inherit; border-color: color-mix(in srgb, currentColor 45%, transparent); }
+  .dx-sql-status { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .dx-sql-status b { color: var(--text); }
+  .dx-sql-examples-wrap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .dx-sql-examples { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dx-sql-side { min-width: 0; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elev); display: flex; flex-direction: column; gap: 6px; max-height: 280px; }
+  .dx-sql-side > .label { margin: 0; }
+  .dx-sql-cols { display: flex; flex-wrap: wrap; gap: 4px; overflow: auto; min-height: 0; }
+  .dx-sql-col { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 2px 7px 2px 3px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-sunken); color: var(--text); cursor: pointer; font: inherit; font-size: 0.78rem; }
+  .dx-sql-col:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .dx-sql-col code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.95em; }
+  .dx-sql-col .dx-tico { min-width: 18px; height: 15px; font-size: 9px; }
+  .dx-sql-quote { margin: 0; }
+  .dx-sql-quote code, .dx-sql-main code { background: var(--bg-sunken); padding: 0 4px; border-radius: 4px; color: var(--text); }
+  .dx .dx-sql-error { margin: 0; }
+  .dx-sql-errmsg { margin: 6px 0 0; white-space: pre-wrap; word-break: break-word; font-size: 0.8rem; color: var(--text); background: color-mix(in srgb, var(--bg-elev) 70%, transparent); padding: 8px 10px; border-radius: var(--radius-sm); overflow-x: auto; }
+  .dx-sql-hint { margin: 6px 0 0; }
+  .dx-sql-out { display: flex; flex-direction: column; gap: 8px; }
+  .dx-sql-out-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .dx .dx-sql-grid.dx-grid-wrap { height: clamp(260px, calc(100vh - 420px), 560px); }
+
+  /* ---------- Paste dialog ---------- */
+  .dx-dialog { width: min(720px, calc(100vw - 24px)); max-width: none; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-elev); color: var(--text); box-shadow: var(--shadow-lg); }
+  .dx-dialog::backdrop { background: rgb(0 0 0 / 0.5); backdrop-filter: blur(2px); }
+  .dx-dialog-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--border); }
+  .dx-dialog-head h2 { margin: 0; font-size: 1.05rem; }
+  .dx-dialog-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .dx .dx-paste-text { min-height: 220px; }
+  .dx-paste-opts { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 1100px) {
+    .dx-table-layout { grid-template-columns: minmax(0, 1fr) 260px; }
+    .dx-sql-layout { grid-template-columns: minmax(0, 1fr) 240px; }
+  }
+  @media (max-width: 860px) {
+    .dx-empty { grid-template-columns: 1fr; }
+    .dx-drop { min-height: 200px; }
+    .dx-table-layout, .dx-sql-layout { grid-template-columns: 1fr; }
+    .dx-profile { height: auto; max-height: none; }
+    .dx-prof-body { overflow: visible; }
+    .dx-grid-wrap { height: min(62vh, 520px); }
+    .dx-sql-side { max-height: none; }
+    .dx-sql-cols { max-height: 136px; }
+  }
+  @media (max-width: 640px) {
+    .dx-privacy { font-size: 0.8rem; }
+    .dx-search { flex: 1 1 100%; }
+    .dx-count { margin-left: 0; flex: 1 1 auto; }
+    .dx-dsbar { padding: 10px; }
+    .dx-ds-info { flex-basis: 100%; }
+    .dx .dx-tabs .tab { padding: 10px 12px; }
+    .dx-ch-controls { grid-template-columns: 1fr 1fr; }
+    .dx-chart-box { height: 340px; }
+    .dx-sql-status { margin-left: 0; flex-basis: 100%; }
+    .dx-dialog { width: calc(100vw - 16px); }
+  }
+</style>

@@ -173,7 +173,8 @@ export function renderProfile(col: Column, rows: Uint32Array, totalRows: number)
     if (s.length) {
       const bins = histogram(s, col.type === 'integer');
       const lab = (b: Bin) => (col.type === 'integer' && bins.length && bins[0].hi - bins[0].lo === 1 ? formatStat(b.lo + 0.5) : `${formatStat(b.lo)} – ${formatStat(b.hi)}`);
-      html += `<h4 class="dx-prof-sub">Distribution</h4>${histHtml(bins, lab)}`;
+      // The distribution goes first so it is visible without scrolling the panel.
+      html = html.replace('<dl class="dx-stats">', `<div class="dx-prof-vis">${histHtml(bins, lab)}</div><h4 class="dx-prof-sub">Statistics</h4><dl class="dx-stats">`);
     }
     if (uniq <= 12 && s.length) html += `<h4 class="dx-prof-sub">Top values</h4>${topHtml(topValues(col, rows), n)}`;
     return html;
@@ -193,7 +194,7 @@ export function renderProfile(col: Column, rows: Uint32Array, totalRows: number)
     html += '</dl>';
     if (s.length > 1 && s[0] !== s[s.length - 1]) {
       const bins = histogram(s, false);
-      html += `<h4 class="dx-prof-sub">Over time</h4>${histHtml(bins, (b) => `${formatDate(b.lo)} – ${formatDate(b.hi)}`)}`;
+      html = html.replace('<dl class="dx-stats">', `<div class="dx-prof-vis">${histHtml(bins, (b) => `${formatDate(b.lo)} – ${formatDate(b.hi)}`)}</div><h4 class="dx-prof-sub">Statistics</h4><dl class="dx-stats">`);
     }
     return html;
   }
