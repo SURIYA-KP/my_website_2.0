@@ -1,6 +1,677 @@
 ---
 import ToolLayout from '../../layouts/ToolLayout.astro';
+
+const tabs: [string, string][] = [
+  ['base64', 'Base64'],
+  ['url', 'URL'],
+  ['html', 'HTML entities'],
+  ['jwt', 'JWT'],
+  ['hash', 'Hash'],
+  ['uuid', 'UUID / IDs'],
+  ['time', 'Timestamps'],
+  ['password', 'Passwords'],
+  ['bases', 'Number bases'],
+];
+const copyIco = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>';
+/** A copy button that copies the value/text of the element with the given id. */
+const copy = (id: string, label = 'Copy', what = 'Copied', extra = '') =>
+  `<button class="btn btn-sm dt-copy ${extra}" type="button" data-copy="${id}" data-copy-msg="${what}" aria-label="${label === 'Copy' ? `Copy ${what.replace(/ copied$/i, '').toLowerCase()}` : label}">${copyIco}<span>${label}</span></button>`;
+const panel = (id: string) => ({ class: 'dt-panel', 'data-tabpanel': `dt:${id}`, id: `dt-panel-${id}`, role: 'tabpanel', 'aria-labelledby': `dt-tab-${id}` });
 ---
 <ToolLayout slug="dev-toolkit">
-  <div class="card"><p class="muted">Coming soon.</p></div>
+  <div class="dt" id="dt">
+    <div class="dt-nav">
+      <div class="tabs dt-tabs" role="tablist" data-tabs="dt" aria-label="Developer utilities">
+        {tabs.map(([id, label], i) => (
+          <button class="tab" role="tab" type="button" data-tab={id} id={`dt-tab-${id}`} aria-controls={`dt-panel-${id}`} aria-selected={i === 0 ? 'true' : 'false'}>{label}</button>
+        ))}
+      </div>
+      <div class="dt-tabselect">
+        <label class="label" for="dt-tab-select">Tool</label>
+        <select class="select" id="dt-tab-select">
+          {tabs.map(([id, label]) => <option value={id}>{label}</option>)}
+        </select>
+      </div>
+    </div>
+
+    <!-- ===================== BASE64 ===================== -->
+    <section {...panel('base64')}>
+      <div class="card dt-card">
+        <div class="dt-card-head">
+          <h2>Text ⇄ Base64</h2>
+          <div class="row">
+            <div class="btn-group" id="b64-mode" role="group" aria-label="Direction">
+              <button class="btn btn-sm" type="button" data-value="auto" aria-pressed="true">Auto</button>
+              <button class="btn btn-sm" type="button" data-value="encode" aria-pressed="false">Encode</button>
+              <button class="btn btn-sm" type="button" data-value="decode" aria-pressed="false">Decode</button>
+            </div>
+            <label class="checkbox" title="Use - and _ instead of + and / (RFC 4648 §5, used in URLs and JWTs)"><input type="checkbox" id="b64-urlsafe" /> URL-safe</label>
+            <label class="checkbox"><input type="checkbox" id="b64-nopad" /> No padding</label>
+          </div>
+        </div>
+        <div class="split">
+          <div class="field">
+            <div class="dt-fhead"><label class="label" for="b64-in">Input</label>
+              <div class="row"><button class="btn btn-sm btn-ghost" type="button" id="b64-example">Example</button><button class="btn btn-sm btn-ghost" type="button" id="b64-clear">Clear</button></div></div>
+            <textarea class="textarea code-input dt-wrap" id="b64-in" spellcheck="false" rows="6">héllo 🌍</textarea>
+          </div>
+          <div class="field">
+            <div class="dt-fhead"><span class="label" id="b64-out-label">Output <span class="badge badge-accent" id="b64-detect">Encoding</span></span>
+              <div class="row"><button class="btn btn-sm btn-ghost" type="button" id="b64-swap" title="Use the output as input">⇅ Swap</button><Fragment set:html={copy('b64-out', 'Copy', 'Output copied')} /></div></div>
+            <textarea class="textarea code-input dt-wrap" id="b64-out" readonly spellcheck="false" rows="6" aria-labelledby="b64-out-label"></textarea>
+          </div>
+        </div>
+        <div id="b64-status" hidden></div>
+        <p class="small muted dt-stats" id="b64-stats"></p>
+      </div>
+
+      <div class="split">
+        <div class="card dt-card">
+          <div class="dt-card-head"><h2>File → Base64</h2>
+            <div class="btn-group" id="b64-file-fmt" role="group" aria-label="Output format">
+              <button class="btn btn-sm" type="button" data-value="b64" aria-pressed="true">Base64</button>
+              <button class="btn btn-sm" type="button" data-value="dataurl" aria-pressed="false">Data URL</button>
+            </div>
+          </div>
+          <div class="dropzone dt-drop" id="b64-drop" aria-label="Choose a file to encode"><strong>Drop a file</strong> or click to choose<div class="small faint">Any type, up to 100 MB. It never leaves your device.</div></div>
+          <div id="b64-file-status" hidden></div>
+          <div id="b64-file-info" class="dt-file-info" hidden></div>
+          <img id="b64-file-preview" class="dt-preview" alt="Preview of the chosen image" hidden />
+          <label class="sr-only" for="b64-file-out">Base64 of the file</label>
+          <textarea class="textarea code-input dt-wrap" id="b64-file-out" readonly rows="5" placeholder="The Base64 text appears here"></textarea>
+          <div class="row">
+            <Fragment set:html={copy('b64-file-out', 'Copy', 'Base64 copied')} />
+            <button class="btn btn-sm" type="button" id="b64-file-dl" disabled>Download .txt</button>
+          </div>
+        </div>
+
+        <div class="card dt-card">
+          <div class="dt-card-head"><h2>Base64 → File</h2><button class="btn btn-sm btn-ghost" type="button" id="b64-dec-example">Example image</button></div>
+          <div class="field">
+            <label class="label" for="b64-dec-in">Base64 or data URL</label>
+            <textarea class="textarea code-input dt-wrap" id="b64-dec-in" spellcheck="false" rows="5" placeholder="iVBORw0KGgo… or data:image/png;base64,…"></textarea>
+          </div>
+          <div id="b64-dec-status" hidden></div>
+          <div id="b64-dec-info" class="dt-file-info" hidden></div>
+          <img id="b64-dec-preview" class="dt-preview" alt="Preview of the decoded image" hidden />
+          <div class="dt-input-row">
+            <label class="sr-only" for="b64-dec-name">File name for the download</label>
+            <input class="input mono" id="b64-dec-name" placeholder="decoded.bin" spellcheck="false" autocomplete="off" />
+            <button class="btn btn-primary" type="button" id="b64-dec-dl" disabled>Download</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== URL ===================== -->
+    <section {...panel('url')} hidden>
+      <div class="card dt-card">
+        <div class="dt-card-head">
+          <h2>Encode / decode</h2>
+          <div class="row">
+            <div class="btn-group" id="url-mode" role="group" aria-label="Mode">
+              <button class="btn btn-sm" type="button" data-value="component" aria-pressed="true" title="encodeURIComponent: escapes everything except A–Z a–z 0–9 - _ . ! ~ * ' ( )">Component</button>
+              <button class="btn btn-sm" type="button" data-value="uri" aria-pressed="false" title="encodeURI: keeps URL structure characters such as : / ? # &amp; =">Full URI</button>
+              <button class="btn btn-sm" type="button" data-value="decode" aria-pressed="false">Decode</button>
+            </div>
+            <label class="checkbox" title="Form encoding (application/x-www-form-urlencoded): space ⇄ +"><input type="checkbox" id="url-plus" /> Spaces as +</label>
+          </div>
+        </div>
+        <div class="split">
+          <div class="field">
+            <div class="dt-fhead"><label class="label" for="url-in">Input</label></div>
+            <textarea class="textarea code-input dt-wrap" id="url-in" spellcheck="false" rows="4">name=Zoë & Co / 50% off? #deal</textarea>
+          </div>
+          <div class="field">
+            <div class="dt-fhead"><span class="label" id="url-out-label">Output</span>
+              <div class="row"><button class="btn btn-sm btn-ghost" type="button" id="url-swap" title="Use the output as input">⇅ Swap</button><Fragment set:html={copy('url-out', 'Copy', 'Output copied')} /></div></div>
+            <textarea class="textarea code-input dt-wrap" id="url-out" readonly spellcheck="false" rows="4" aria-labelledby="url-out-label"></textarea>
+          </div>
+        </div>
+        <div id="url-status" hidden></div>
+      </div>
+
+      <div class="card dt-card">
+        <div class="dt-card-head"><h2>URL parser &amp; builder</h2><span class="small muted">Edit any part or parameter and the URL is rebuilt.</span></div>
+        <div class="field">
+          <label class="label" for="url-parse">URL</label>
+          <div class="dt-input-row">
+            <input class="input mono" id="url-parse" spellcheck="false" autocomplete="off" value="https://api.example.com:8443/v2/search?q=caf%C3%A9+au+lait&page=2&tag=new&tag=sale#results" />
+            <Fragment set:html={copy('url-parse', 'Copy', 'URL copied')} />
+          </div>
+        </div>
+        <div id="url-parse-status" hidden></div>
+        <div class="dt-url-grid" id="url-parts">
+          <div class="field"><label class="label" for="url-protocol">Protocol</label><input class="input mono" id="url-protocol" data-part="protocol" spellcheck="false" autocomplete="off" /></div>
+          <div class="field"><label class="label" for="url-hostname">Host</label><input class="input mono" id="url-hostname" data-part="hostname" spellcheck="false" autocomplete="off" /></div>
+          <div class="field"><label class="label" for="url-port">Port</label><input class="input mono" id="url-port" data-part="port" spellcheck="false" autocomplete="off" inputmode="numeric" /></div>
+          <div class="field"><label class="label" for="url-origin">Origin</label><input class="input mono" id="url-origin" readonly tabindex="-1" /></div>
+          <div class="field dt-span2"><label class="label" for="url-pathname">Path</label><input class="input mono" id="url-pathname" data-part="pathname" spellcheck="false" autocomplete="off" /></div>
+          <div class="field"><label class="label" for="url-hash">Hash (fragment)</label><input class="input mono" id="url-hash" data-part="hash" spellcheck="false" autocomplete="off" /></div>
+          <div class="field"><label class="label" for="url-username">User : password</label>
+            <div class="dt-input-row dt-userpass"><input class="input mono" id="url-username" data-part="username" spellcheck="false" autocomplete="off" aria-label="Username" placeholder="user" /><input class="input mono" id="url-password" data-part="password" spellcheck="false" autocomplete="off" aria-label="Password" placeholder="password" /></div></div>
+        </div>
+        <div class="dt-fhead dt-params-head">
+          <h3>Query parameters <span class="badge" id="url-param-count">0</span></h3>
+          <div class="row"><Fragment set:html={copy('url-query', 'Copy query', 'Query string copied')} /><button class="btn btn-sm" type="button" id="url-add-param">+ Add parameter</button></div>
+        </div>
+        <output class="sr-only" id="url-query"></output>
+        <div class="dt-params" id="url-params" role="table" aria-label="Query parameters">
+          <div class="dt-param dt-param-head" role="row"><span role="columnheader">Key</span><span role="columnheader">Value (decoded)</span><span role="columnheader"><span class="sr-only">Remove</span></span></div>
+          <div id="url-param-rows" role="rowgroup"></div>
+        </div>
+        <p class="small muted dt-empty" id="url-params-empty" hidden>No query parameters. Add one to build a query string.</p>
+      </div>
+    </section>
+
+    <!-- ===================== HTML ENTITIES ===================== -->
+    <section {...panel('html')} hidden>
+      <div class="card dt-card">
+        <div class="dt-card-head">
+          <h2>HTML entities</h2>
+          <div class="btn-group" id="html-mode" role="group" aria-label="Direction">
+            <button class="btn btn-sm" type="button" data-value="encode" aria-pressed="true">Encode</button>
+            <button class="btn btn-sm" type="button" data-value="decode" aria-pressed="false">Decode</button>
+          </div>
+        </div>
+        <div class="dt-opts" id="html-enc-opts">
+          <div class="field"><label class="label" for="html-scope">Characters to encode</label>
+            <select class="select" id="html-scope">
+              <option value="special">Only HTML-special: &amp; &lt; &gt; " '</option>
+              <option value="nonascii" selected>Special + non-ASCII</option>
+              <option value="all">Everything except letters, digits, spaces</option>
+            </select></div>
+          <div class="field"><label class="label" for="html-format">Entity format</label>
+            <select class="select" id="html-format">
+              <option value="named" selected>Named when available (&amp;eacute;)</option>
+              <option value="dec">Decimal (&amp;#233;)</option>
+              <option value="hex">Hex (&amp;#xE9;)</option>
+            </select></div>
+        </div>
+        <div class="split">
+          <div class="field">
+            <div class="dt-fhead"><label class="label" for="html-in">Input</label></div>
+            <textarea class="textarea code-input dt-wrap" id="html-in" spellcheck="false" rows="6">&lt;p class="note"&gt;Café © 2026 — "quotes" &amp; 5 &lt; 7 ✓ 🌍&lt;/p&gt;</textarea>
+          </div>
+          <div class="field">
+            <div class="dt-fhead"><span class="label" id="html-out-label">Output</span>
+              <div class="row"><button class="btn btn-sm btn-ghost" type="button" id="html-swap" title="Use the output as input and flip the direction">⇅ Swap</button><Fragment set:html={copy('html-out', 'Copy', 'Output copied')} /></div></div>
+            <textarea class="textarea code-input dt-wrap" id="html-out" readonly spellcheck="false" rows="6" aria-labelledby="html-out-label"></textarea>
+          </div>
+        </div>
+        <p class="small muted dt-stats" id="html-stats"></p>
+      </div>
+      <div class="card dt-card">
+        <div class="dt-card-head"><h2>Common entities</h2><span class="small muted">Click one to copy its code</span></div>
+        <div class="dt-entity-grid" id="html-cheats"></div>
+      </div>
+    </section>
+
+    <!-- ===================== JWT ===================== -->
+    <section {...panel('jwt')} hidden>
+      <div class="alert alert-warning dt-note" role="note"><strong>Decoding is not verification.</strong> Anyone can read a JWT’s header and payload, and anyone can forge them. Only a signature checked with the right key proves the token is genuine. Tokens and keys never leave this page.</div>
+      <div class="split">
+        <div class="dt-col">
+          <div class="card dt-card">
+            <div class="dt-card-head"><h2>Encoded token</h2>
+              <div class="row"><button class="btn btn-sm btn-ghost" type="button" id="jwt-example">New example</button><button class="btn btn-sm btn-ghost" type="button" id="jwt-clear">Clear</button></div></div>
+            <label class="sr-only" for="jwt-in">JSON Web Token</label>
+            <textarea class="textarea code-input dt-wrap dt-jwt-in" id="jwt-in" spellcheck="false" rows="5" placeholder="Paste a token: eyJhbGciOi…"></textarea>
+            <div class="dt-jwt-colored mono" id="jwt-colored" aria-hidden="true"></div>
+            <div id="jwt-status" hidden></div>
+          </div>
+          <div class="card dt-card">
+            <div class="dt-card-head"><h2>Verify signature</h2><span class="badge" id="jwt-alg">alg: –</span></div>
+            <div id="jwt-hs" class="field">
+              <label class="label" for="jwt-secret">Secret</label>
+              <div class="dt-input-row">
+                <input class="input mono" id="jwt-secret" spellcheck="false" autocomplete="off" value="dev-toolkit-secret" />
+                <select class="select dt-narrow" id="jwt-secret-enc" aria-label="Secret encoding">
+                  <option value="utf8">UTF-8</option><option value="base64">Base64</option><option value="hex">Hex</option>
+                </select>
+              </div>
+            </div>
+            <div id="jwt-pk" class="field" hidden>
+              <label class="label" for="jwt-key">Public key: PEM (BEGIN PUBLIC KEY or BEGIN RSA PUBLIC KEY) or JWK JSON</label>
+              <textarea class="textarea code-input" id="jwt-key" spellcheck="false" rows="5" placeholder="-----BEGIN PUBLIC KEY-----&#10;MIIBIjANBgkqh…&#10;-----END PUBLIC KEY-----"></textarea>
+            </div>
+            <div class="dt-verify" id="jwt-verify" role="status" aria-live="polite"><span class="badge">Not checked</span></div>
+          </div>
+        </div>
+        <div class="dt-col">
+          <div class="card dt-card">
+            <div class="dt-card-head"><h2>Header</h2><Fragment set:html={copy('jwt-header', 'Copy', 'Header copied')} /></div>
+            <pre class="dt-json" id="jwt-header" tabindex="0" aria-label="Decoded header"></pre>
+          </div>
+          <div class="card dt-card">
+            <div class="dt-card-head"><h2>Payload</h2><Fragment set:html={copy('jwt-payload', 'Copy', 'Payload copied')} /></div>
+            <pre class="dt-json" id="jwt-payload" tabindex="0" aria-label="Decoded payload"></pre>
+          </div>
+          <div class="card dt-card">
+            <div class="dt-card-head"><h2>Time claims</h2><span id="jwt-time-badge"></span></div>
+            <div class="dt-kv" id="jwt-claims"></div>
+            <p class="small muted dt-empty" id="jwt-claims-empty">No iat, nbf or exp claims in this token.</p>
+          </div>
+        </div>
+      </div>
+      <div class="card dt-card">
+        <div class="dt-card-head"><h2>Create &amp; sign a token</h2>
+          <div class="row">
+            <label class="sr-only" for="jwt-make-alg">Algorithm</label>
+            <select class="select dt-narrow" id="jwt-make-alg"><option>HS256</option><option>HS384</option><option>HS512</option></select>
+            <button class="btn btn-sm btn-ghost" type="button" id="jwt-make-now" title="Set iat to now and exp to one hour from now">Refresh iat/exp</button>
+          </div>
+        </div>
+        <div class="split">
+          <div class="field"><label class="label" for="jwt-make-header">Header (JSON)</label>
+            <textarea class="textarea code-input" id="jwt-make-header" spellcheck="false" rows="7"></textarea></div>
+          <div class="field"><label class="label" for="jwt-make-payload">Payload (JSON)</label>
+            <textarea class="textarea code-input" id="jwt-make-payload" spellcheck="false" rows="7"></textarea></div>
+        </div>
+        <div class="field"><label class="label" for="jwt-make-secret">Secret (UTF-8)</label>
+          <input class="input mono" id="jwt-make-secret" spellcheck="false" autocomplete="off" value="dev-toolkit-secret" /></div>
+        <div id="jwt-make-status" hidden></div>
+        <div class="field">
+          <div class="dt-fhead"><span class="label" id="jwt-make-out-label">Signed token</span>
+            <div class="row"><button class="btn btn-sm" type="button" id="jwt-make-load">Open in decoder</button><Fragment set:html={copy('jwt-make-out', 'Copy', 'Token copied')} /></div></div>
+          <output class="dt-jwt-colored mono dt-out-box" id="jwt-make-out" aria-labelledby="jwt-make-out-label"></output>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== HASH ===================== -->
+    <section {...panel('hash')} hidden>
+      <div class="split">
+        <div class="card dt-card">
+          <div class="dt-card-head">
+            <h2>Input</h2>
+            <div class="btn-group" id="hash-src" role="group" aria-label="Source">
+              <button class="btn btn-sm" type="button" data-value="text" aria-pressed="true">Text</button>
+              <button class="btn btn-sm" type="button" data-value="file" aria-pressed="false">File</button>
+            </div>
+          </div>
+          <div id="hash-text-box" class="field">
+            <label class="label" for="hash-in">Text (hashed as UTF-8)</label>
+            <textarea class="textarea code-input dt-wrap" id="hash-in" spellcheck="false" rows="5">abc</textarea>
+          </div>
+          <div id="hash-file-box" class="dt-col" hidden>
+            <div class="dropzone dt-drop" id="hash-drop" aria-label="Choose a file to hash"><strong>Drop a file</strong> or click to choose<div class="small faint">Any size: read in 4 MB chunks in a background thread.</div></div>
+            <div id="hash-file-info" class="dt-file-info" hidden></div>
+            <div class="dt-progress" id="hash-progress" hidden>
+              <div class="dt-progress-bar" role="progressbar" aria-label="Hashing progress" aria-valuemin="0" aria-valuemax="100" id="hash-progress-bar"><div id="hash-progress-fill"></div></div>
+              <div class="dt-fhead small muted"><span id="hash-progress-text">0%</span><button class="btn btn-sm btn-ghost" type="button" id="hash-cancel">Cancel</button></div>
+            </div>
+          </div>
+          <fieldset class="dt-sub dt-algos">
+            <legend class="label">Algorithms</legend>
+            <div class="row" id="hash-algos"></div>
+          </fieldset>
+          <div class="dt-sub">
+            <label class="checkbox"><input type="checkbox" id="hash-hmac" /> HMAC with a secret key</label>
+            <div class="dt-input-row" id="hash-key-row" hidden>
+              <label class="sr-only" for="hash-key">HMAC key</label>
+              <input class="input mono" id="hash-key" placeholder="Secret key" spellcheck="false" autocomplete="off" />
+              <select class="select dt-narrow" id="hash-key-enc" aria-label="Key encoding"><option value="utf8">UTF-8</option><option value="hex">Hex</option><option value="base64">Base64</option></select>
+            </div>
+          </div>
+          <div class="dt-sub field">
+            <label class="label" for="hash-expect">Compare with an expected hash</label>
+            <input class="input mono" id="hash-expect" placeholder="Paste a hex or Base64 digest to check" spellcheck="false" autocomplete="off" />
+            <div id="hash-compare" class="dt-compare" role="status" aria-live="polite"></div>
+          </div>
+        </div>
+        <div class="card dt-card">
+          <div class="dt-card-head">
+            <h2 id="hash-results-title">Digests</h2>
+            <div class="btn-group" id="hash-fmt" role="group" aria-label="Output format">
+              <button class="btn btn-sm" type="button" data-value="hex" aria-pressed="true">hex</button>
+              <button class="btn btn-sm" type="button" data-value="HEX" aria-pressed="false">HEX</button>
+              <button class="btn btn-sm" type="button" data-value="base64" aria-pressed="false">Base64</button>
+            </div>
+          </div>
+          <div class="dt-kv dt-hash-list" id="hash-results" aria-live="polite"></div>
+          <p class="small muted dt-empty" id="hash-empty" hidden>Drop a file on the left to hash it.</p>
+          <p class="small faint dt-foot">MD5 and SHA-1 are broken for security purposes. Use them only for checksums and legacy systems.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== UUID ===================== -->
+    <section {...panel('uuid')} hidden>
+      <div class="split">
+        <div class="card dt-card">
+          <div class="dt-card-head"><h2>Generate</h2>
+            <div class="btn-group" id="uuid-type" role="group" aria-label="ID type">
+              <button class="btn btn-sm" type="button" data-value="v4" aria-pressed="true">UUID v4</button>
+              <button class="btn btn-sm" type="button" data-value="v7" aria-pressed="false">UUID v7</button>
+              <button class="btn btn-sm" type="button" data-value="ulid" aria-pressed="false">ULID</button>
+              <button class="btn btn-sm" type="button" data-value="nanoid" aria-pressed="false">Nano ID</button>
+            </div>
+          </div>
+          <p class="small muted dt-desc" id="uuid-desc"></p>
+          <div class="dt-opts">
+            <div class="field dt-count"><label class="label" for="uuid-count">How many (1–1000)</label><input class="input" id="uuid-count" type="number" min="1" max="1000" value="5" /></div>
+            <label class="checkbox" id="uuid-upper-wrap"><input type="checkbox" id="uuid-upper" /> Uppercase</label>
+            <label class="checkbox" id="uuid-nohyph-wrap"><input type="checkbox" id="uuid-nohyph" /> No hyphens</label>
+          </div>
+          <div class="dt-opts" id="uuid-nano-opts" hidden>
+            <div class="field dt-count"><label class="label" for="uuid-nano-size">Length</label><input class="input" id="uuid-nano-size" type="number" min="2" max="256" value="21" /></div>
+            <div class="field grow"><label class="label" for="uuid-nano-alpha">Alphabet</label>
+              <select class="select" id="uuid-nano-alpha">
+                <option value="url">URL-safe (A–Z a–z 0–9 _ -)</option>
+                <option value="alnum">Alphanumeric</option>
+                <option value="hex">Hex, lowercase</option>
+                <option value="num">Numbers only</option>
+                <option value="nolook">No look-alikes (no 0 O 1 l I …)</option>
+              </select></div>
+          </div>
+          <div class="row">
+            <button class="btn btn-primary" type="button" id="uuid-gen">Generate</button>
+            <Fragment set:html={copy('uuid-out', 'Copy all', 'IDs copied')} />
+            <button class="btn btn-sm" type="button" id="uuid-dl">Download .txt</button>
+          </div>
+          <label class="sr-only" for="uuid-out">Generated IDs</label>
+          <textarea class="textarea code-input" id="uuid-out" readonly rows="8" spellcheck="false"></textarea>
+        </div>
+        <div class="card dt-card">
+          <div class="dt-card-head"><h2>Inspect</h2><span class="small muted">Any UUID version, or a ULID</span></div>
+          <label class="sr-only" for="uuid-inspect">ID to inspect</label>
+          <input class="input mono" id="uuid-inspect" spellcheck="false" autocomplete="off" placeholder="0190a1b2-… or 01ARZ3NDEKTSV4RRFFQ69G5FAV" />
+          <div id="uuid-inspect-status" hidden></div>
+          <div class="dt-kv" id="uuid-inspect-out"></div>
+          <p class="small faint dt-foot">Tip: click any generated ID's line, then paste it here. The first generated ID is inspected automatically.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== TIMESTAMPS ===================== -->
+    <section {...panel('time')} hidden>
+      <div class="card dt-card dt-now" aria-label="Current time">
+        <div class="dt-now-item"><span class="label">Unix seconds</span><button class="dt-now-val mono" type="button" id="time-now-s" title="Click to copy">–</button></div>
+        <div class="dt-now-item"><span class="label">Unix milliseconds</span><button class="dt-now-val mono" type="button" id="time-now-ms" title="Click to copy">–</button></div>
+        <div class="dt-now-item dt-now-wide"><span class="label">ISO 8601 (UTC)</span><button class="dt-now-val mono" type="button" id="time-now-iso" title="Click to copy">–</button></div>
+      </div>
+      <div class="split">
+        <div class="card dt-card">
+          <div class="dt-card-head"><h2>Convert</h2><button class="btn btn-sm" type="button" id="time-use-now">Use now</button></div>
+          <div class="field">
+            <label class="label" for="time-in">Unix timestamp, ISO 8601, RFC 2822, or a date and time</label>
+            <input class="input mono" id="time-in" spellcheck="false" autocomplete="off" value="1700000000" />
+          </div>
+          <div class="dt-opts">
+            <div class="field"><label class="label" for="time-unit">Number unit</label>
+              <select class="select" id="time-unit"><option value="auto">Auto-detect</option><option value="s">Seconds</option><option value="ms">Milliseconds</option><option value="us">Microseconds</option><option value="ns">Nanoseconds</option></select></div>
+            <div class="field grow"><label class="label" for="time-zone">Time zone (type to search)</label>
+              <input class="input" id="time-zone" list="dt-tz-list" spellcheck="false" autocomplete="off" /></div>
+          </div>
+          <p class="small muted dt-stats" id="time-detect"></p>
+          <div id="time-status" hidden></div>
+          <div class="dt-kv" id="time-out"></div>
+        </div>
+        <div class="card dt-card">
+          <div class="dt-card-head"><h2>Time-zone comparison</h2><span class="small muted">Same instant, several places</span></div>
+          <div class="dt-zones" id="time-zones"></div>
+          <div class="dt-input-row">
+            <label class="sr-only" for="time-add-zone">Add a time zone</label>
+            <input class="input" id="time-add-zone" list="dt-tz-list" placeholder="Add a zone, e.g. Asia/Kolkata" spellcheck="false" autocomplete="off" />
+            <button class="btn" type="button" id="time-add-zone-btn">Add</button>
+          </div>
+        </div>
+      </div>
+      <datalist id="dt-tz-list"></datalist>
+    </section>
+
+    <!-- ===================== PASSWORDS ===================== -->
+    <section {...panel('password')} hidden>
+      <div class="card dt-card">
+        <div class="dt-card-head">
+          <div class="btn-group" id="pw-mode" role="group" aria-label="Generator type">
+            <button class="btn" type="button" data-value="password" aria-pressed="true">Password</button>
+            <button class="btn" type="button" data-value="passphrase" aria-pressed="false">Passphrase</button>
+          </div>
+          <span class="small muted">crypto.getRandomValues with unbiased sampling</span>
+        </div>
+        <div class="dt-pw-out">
+          <output class="mono" id="pw-out" aria-live="polite" aria-label="Generated secret"></output>
+          <div class="row">
+            <button class="btn" type="button" id="pw-regen" title="Generate new ones">↻ New</button>
+            <button class="btn btn-primary" type="button" data-copy="pw-out" data-copy-msg="Password copied">Copy</button>
+          </div>
+        </div>
+        <div class="dt-meter" id="pw-meter" role="meter" aria-label="Strength" aria-valuemin="0" aria-valuemax="128" aria-valuenow="0"><div id="pw-meter-fill"></div></div>
+        <p class="small dt-strength" id="pw-strength"></p>
+
+        <div id="pw-opts-password" class="dt-pw-opts">
+          <div class="field">
+            <label class="label" for="pw-len">Length</label>
+            <div class="dt-input-row"><input type="range" id="pw-len" min="4" max="128" value="20" /><input class="input dt-num" type="number" id="pw-len-num" min="4" max="128" value="20" aria-label="Length (number)" /></div>
+          </div>
+          <div class="row dt-checks">
+            <label class="checkbox"><input type="checkbox" id="pw-lower" checked /> a–z</label>
+            <label class="checkbox"><input type="checkbox" id="pw-upper" checked /> A–Z</label>
+            <label class="checkbox"><input type="checkbox" id="pw-digits" checked /> 0–9</label>
+            <label class="checkbox"><input type="checkbox" id="pw-symbols" checked /> Symbols</label>
+            <label class="checkbox" title="Leaves out I l 1 | O 0 o and quote-like characters"><input type="checkbox" id="pw-ambig" /> Exclude look-alikes</label>
+          </div>
+          <div class="field"><label class="label" for="pw-symset">Symbol set</label><input class="input mono" id="pw-symset" value="!@#$%^&*()-_=+[]{};:,.?/~" spellcheck="false" autocomplete="off" /></div>
+        </div>
+
+        <div id="pw-opts-passphrase" class="dt-pw-opts" hidden>
+          <div class="field">
+            <label class="label" for="pp-words">Words</label>
+            <div class="dt-input-row"><input type="range" id="pp-words" min="3" max="12" value="5" /><input class="input dt-num" type="number" id="pp-words-num" min="3" max="12" value="5" aria-label="Number of words (number)" /></div>
+          </div>
+          <div class="row dt-checks">
+            <div class="field"><label class="label" for="pp-sep">Separator</label>
+              <select class="select" id="pp-sep"><option value="-">Hyphen -</option><option value=" ">Space</option><option value=".">Period .</option><option value="_">Underscore _</option><option value="">None</option></select></div>
+            <label class="checkbox"><input type="checkbox" id="pp-cap" checked /> Capitalize</label>
+            <label class="checkbox"><input type="checkbox" id="pp-num" checked /> Add a number</label>
+          </div>
+          <p class="small muted dt-foot" id="pp-info"></p>
+        </div>
+      </div>
+      <div class="card dt-card">
+        <div class="dt-card-head"><h2>More like this</h2>
+          <div class="row">
+            <label class="small muted" for="pw-count">How many</label>
+            <select class="select dt-narrow" id="pw-count"><option>5</option><option selected>10</option><option>25</option><option>50</option></select>
+            <Fragment set:html={copy('pw-list-text', 'Copy all', 'All copied')} />
+          </div>
+        </div>
+        <output class="sr-only" id="pw-list-text"></output>
+        <ol class="dt-pw-list" id="pw-list"></ol>
+      </div>
+    </section>
+
+    <!-- ===================== NUMBER BASES ===================== -->
+    <section {...panel('bases')} hidden>
+      <div class="card dt-card">
+        <div class="dt-card-head"><h2>Number bases</h2><label class="checkbox"><input type="checkbox" id="nb-group" /> Group digits</label></div>
+        <p class="small muted dt-desc">Arbitrary precision (BigInt). Type in any field. Accepts 0b / 0o / 0x prefixes, a leading minus, spaces and underscores.</p>
+        <div class="dt-bases">
+          <div class="field"><label class="label" for="nb-2">Binary (base 2)</label><div class="dt-input-row"><input class="input mono" id="nb-2" data-base="2" spellcheck="false" autocomplete="off" /><Fragment set:html={copy('nb-2', 'Copy', 'Binary copied')} /></div></div>
+          <div class="field"><label class="label" for="nb-8">Octal (base 8)</label><div class="dt-input-row"><input class="input mono" id="nb-8" data-base="8" spellcheck="false" autocomplete="off" /><Fragment set:html={copy('nb-8', 'Copy', 'Octal copied')} /></div></div>
+          <div class="field"><label class="label" for="nb-10">Decimal (base 10)</label><div class="dt-input-row"><input class="input mono" id="nb-10" data-base="10" spellcheck="false" autocomplete="off" value="3735928559" /><Fragment set:html={copy('nb-10', 'Copy', 'Decimal copied')} /></div></div>
+          <div class="field"><label class="label" for="nb-16">Hexadecimal (base 16)</label><div class="dt-input-row"><input class="input mono" id="nb-16" data-base="16" spellcheck="false" autocomplete="off" /><Fragment set:html={copy('nb-16', 'Copy', 'Hex copied')} /></div></div>
+          <div class="field"><label class="label dt-custom-label" for="nb-custom">Base <select class="select dt-inline-select" id="nb-custom-base" aria-label="Custom base"></select></label><div class="dt-input-row"><input class="input mono" id="nb-custom" data-base="custom" spellcheck="false" autocomplete="off" /><Fragment set:html={copy('nb-custom', 'Copy', 'Value copied')} /></div></div>
+        </div>
+        <div id="nb-status" hidden></div>
+        <div class="dt-kv" id="nb-info"></div>
+      </div>
+      <div class="card dt-card">
+        <div class="dt-card-head"><h2>Bytes ⇄ human units</h2><span class="small muted">SI (1000) and IEC (1024)</span></div>
+        <div class="dt-opts">
+          <div class="field grow"><label class="label" for="bu-val">Amount</label><input class="input mono" id="bu-val" value="1.5" inputmode="decimal" autocomplete="off" /></div>
+          <div class="field"><label class="label" for="bu-unit">Unit</label>
+            <select class="select" id="bu-unit">
+              <option value="0.125">bits</option>
+              <option value="1">B (bytes)</option>
+              <option value="1e3">kB (1000)</option><option value="1e6">MB (1000²)</option><option value="1e9">GB (1000³)</option><option value="1e12">TB (1000⁴)</option><option value="1e15">PB (1000⁵)</option>
+              <option value="1024">KiB (1024)</option><option value="1048576">MiB (1024²)</option><option value="1073741824" selected>GiB (1024³)</option><option value="1099511627776">TiB (1024⁴)</option><option value="1125899906842624">PiB (1024⁵)</option>
+            </select></div>
+        </div>
+        <div id="bu-status" hidden></div>
+        <div class="dt-kv" id="bu-human"></div>
+        <div class="scroll-x">
+          <table class="table dt-bu-table" id="bu-table">
+            <thead><tr><th scope="col">Decimal (SI)</th><th scope="col">Value</th><th scope="col">Binary (IEC)</th><th scope="col">Value</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
 </ToolLayout>
+
+<script>
+  import { init } from '../../tools/dev-toolkit/main';
+  init();
+</script>
+
+<style is:global>
+  .dt { display: flex; flex-direction: column; gap: 16px; }
+  .dt-nav { position: relative; }
+  /* Scoped under .dt so these win over the shared .tabs / .select rules regardless of stylesheet order. */
+  .dt .dt-tabselect { display: none; }
+  @media (max-width: 640px) {
+    .dt .dt-tabs { display: none; }
+    .dt .dt-tabselect { display: block; }
+  }
+  .dt-panel { display: flex; flex-direction: column; gap: 16px; }
+  .dt [hidden] { display: none !important; }
+  .dt-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .dt-card { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .dt-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; min-height: 28px; }
+  .dt-card-head h2 { margin: 0; font-size: 1.05rem; }
+  .dt-card h3 { margin: 0; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
+  .dt-fhead { display: flex; align-items: flex-end; justify-content: space-between; gap: 6px 8px; flex-wrap: wrap; min-height: 28px; }
+  .dt-fhead .label { margin: 0; display: inline-flex; align-items: center; gap: 6px; }
+  .dt-wrap { white-space: pre-wrap; word-break: break-all; }
+  .dt .input.mono { font-family: var(--font-mono); font-size: 13px; }
+  .dt .input[readonly] { background: var(--bg-sunken); color: var(--text-muted); }
+  .dt-stats, .dt-desc, .dt-foot, .dt-empty { margin: 0; }
+  .dt-stats { min-height: 1.3em; }
+  .dt-empty { padding: 10px 12px; border: 1px dashed var(--border-strong); border-radius: var(--radius); text-align: center; }
+  .dt-opts { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; }
+  .dt-opts .field { min-width: 0; }
+  .dt-opts .checkbox { height: 34px; }
+  .dt-input-row { display: flex; gap: 8px; align-items: center; min-width: 0; }
+  .dt-input-row > .input, .dt-input-row > .select:not(.dt-narrow), .dt-input-row > input[type='range'] { flex: 1 1 auto; min-width: 0; }
+  .dt .dt-narrow { width: auto; flex: 0 0 auto; }
+  .dt-num { width: 76px !important; flex: 0 0 auto !important; }
+  .dt-copy { gap: 5px; flex: 0 0 auto; }
+  .dt-copy svg { flex: 0 0 auto; }
+  .dt-drop { padding: 22px 16px; }
+  .dt-file-info { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.85rem; color: var(--text-muted); }
+  .dt-file-info b { color: var(--text); font-weight: 600; }
+  .dt-preview { max-height: 160px; max-width: 100%; align-self: flex-start; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: repeating-conic-gradient(var(--bg-sunken) 0% 25%, var(--bg-elev) 0% 50%) 50% / 16px 16px; }
+  .dt-sub { border: 0; border-top: 1px solid var(--border); margin: 0; padding: 12px 0 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .dt-sub > legend { float: left; width: 100%; padding: 0; }
+  .dt-note { margin: 0; }
+  .dt-out-box { display: block; min-height: 3em; }
+
+  /* key/value rows */
+  .dt-kv { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .dt-kv:empty { display: none; }
+  .dt-kv-row { display: grid; grid-template-columns: minmax(96px, 150px) minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 6px 8px 6px 12px; border-top: 1px solid var(--border); min-height: 40px; }
+  .dt-kv-row:first-child { border-top: 0; }
+  .dt-kv-row.is-match { background: var(--success-soft); }
+  .dt-kv-row.is-match .dt-kv-key { color: var(--success); }
+  .dt-kv-key { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+  .dt-kv-val { font-family: var(--font-mono); font-size: 13px; overflow-wrap: anywhere; min-width: 0; }
+  .dt-kv-val .faint, .dt-kv-val .muted, .dt-kv-row.is-text .dt-kv-val { font-family: var(--font-sans); font-size: 0.875rem; }
+  .dt-kv-sub { display: block; margin-top: 1px; }
+  @media (max-width: 560px) {
+    .dt-kv-row { grid-template-columns: minmax(0, 1fr) auto; padding-top: 8px; padding-bottom: 8px; }
+    .dt-kv-key { grid-column: 1 / -1; }
+  }
+
+  /* URL */
+  .dt-url-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 12px; }
+  .dt-span2 { grid-column: span 2; }
+  .dt-userpass > .input { flex: 1 1 0; }
+  @media (max-width: 860px) { .dt-url-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 480px) { .dt-url-grid { grid-template-columns: minmax(0, 1fr); } .dt-span2 { grid-column: auto; } }
+  .dt-params-head { margin-top: 4px; align-items: center; }
+  .dt-params { display: flex; flex-direction: column; gap: 6px; }
+  .dt-param { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) 34px; gap: 6px; align-items: center; }
+  .dt-param-head { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+  #url-param-rows { display: flex; flex-direction: column; gap: 6px; }
+  .dt-params:has(#url-param-rows:empty) .dt-param-head { display: none; }
+
+  /* HTML entity cheat sheet */
+  .dt-entity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; }
+  .dt-entity { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--bg-elev); color: var(--text); font: inherit; cursor: pointer; text-align: left; min-width: 0; }
+  .dt-entity:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .dt-entity-ch { font-size: 1.15rem; width: 1.4em; text-align: center; flex: 0 0 auto; }
+  .dt-entity-code { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; }
+
+  /* JWT */
+  .dt-jwt-in { min-height: 96px; }
+  .dt-jwt-colored { font-size: 12.5px; word-break: break-all; line-height: 1.55; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--bg-sunken); border: 1px solid var(--border); }
+  .dt-jwt-colored:empty { display: none; }
+  .dt-out-box.dt-jwt-colored:empty { display: block; }
+  .dt-jwt-h { color: var(--c4); }
+  .dt-jwt-p { color: var(--c6); }
+  .dt-jwt-s { color: var(--c2); }
+  .dt-jwt-dot { color: var(--text-faint); font-weight: 700; }
+  .dt-json { margin: 0; padding: 10px 12px; background: var(--bg-sunken); border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: 13px; overflow: auto; max-height: 360px; white-space: pre-wrap; word-break: break-word; min-height: 2.6em; }
+  .dt-j-key { color: var(--c6); }
+  .dt-j-str { color: var(--c5); }
+  .dt-j-num { color: var(--c3); }
+  .dt-j-bool, .dt-j-null { color: var(--c4); }
+  .dt-verify { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.875rem; }
+  .dt-verify .badge, #jwt-time-badge .badge, .dt-compare .badge { font-size: 0.8rem; padding: 3px 10px; }
+
+  /* Hash */
+  .dt-hash-list .dt-kv-row { grid-template-columns: 74px minmax(0, 1fr) auto; }
+  @media (max-width: 560px) { .dt-hash-list .dt-kv-row { grid-template-columns: minmax(0, 1fr) auto; } }
+  .dt-progress { display: flex; flex-direction: column; gap: 4px; }
+  .dt-progress-bar { height: 8px; background: var(--bg-sunken); border-radius: 999px; overflow: hidden; border: 1px solid var(--border); }
+  .dt-progress-bar > div { height: 100%; width: 0; background: var(--accent); transition: width 0.15s; }
+  .dt-algos .row { gap: 6px 16px; }
+  .dt-compare { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.85rem; }
+  .dt-compare:empty { display: none; }
+
+  /* UUID */
+  .dt-count { width: 150px; }
+  #uuid-out { min-height: 190px; }
+
+  /* Time */
+  .dt-now { flex-direction: row; flex-wrap: wrap; gap: 12px 36px; }
+  .dt-now-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .dt-now-item .label { margin: 0; }
+  .dt-now-val { appearance: none; border: 0; background: none; padding: 0; color: var(--text); font-size: 1.3rem; font-weight: 600; cursor: pointer; text-align: left; font-variant-numeric: tabular-nums; word-break: break-all; border-radius: 4px; }
+  .dt-now-val:hover { color: var(--accent); }
+  .dt-zones { display: flex; flex-direction: column; gap: 8px; }
+  .dt-zone { display: grid; grid-template-columns: minmax(0, 1fr) auto 34px; align-items: center; gap: 2px 10px; padding: 8px 6px 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); }
+  .dt-zone-name { font-weight: 600; font-size: 0.875rem; word-break: break-word; }
+  .dt-zone-sub { font-size: 0.75rem; color: var(--text-muted); overflow-wrap: anywhere; }
+  .dt-zone-sub span { white-space: nowrap; }
+  .dt-zone-time { font-family: var(--font-mono); font-size: 0.95rem; text-align: right; font-variant-numeric: tabular-nums; }
+  .dt-zone-date { font-size: 0.75rem; color: var(--text-muted); text-align: right; }
+  .dt-zone .btn-icon { grid-row: span 1; }
+
+  /* Passwords */
+  .dt-pw-out { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 16px; background: var(--bg-sunken); border-radius: var(--radius); border: 1px solid var(--border); }
+  .dt-pw-out output { flex: 1 1 260px; min-width: 0; font-size: 1.2rem; word-break: break-all; line-height: 1.4; }
+  .dt-meter { height: 8px; border-radius: 999px; background: var(--bg-sunken); overflow: hidden; border: 1px solid var(--border); }
+  .dt-meter > div { height: 100%; width: 0; border-radius: 999px; transition: width 0.2s, background 0.2s; }
+  .dt-strength { margin: 0; }
+  .dt-pw-opts { display: flex; flex-direction: column; gap: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
+  .dt-checks { gap: 10px 18px; align-items: flex-end; }
+  .dt-checks .checkbox { height: 34px; }
+  .dt-pw-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 6px 16px; }
+  .dt-pw-list li { display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); min-width: 0; }
+  .dt-pw-list code { flex: 1 1 auto; min-width: 0; font-family: var(--font-mono); font-size: 13px; word-break: break-all; }
+  @media (max-width: 400px) { .dt-pw-list { grid-template-columns: minmax(0, 1fr); } }
+
+  /* Bases */
+  .dt-bases { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .dt-custom-label { display: flex; align-items: center; gap: 6px; }
+  .dt-inline-select { height: 26px; width: auto; padding: 0 24px 0 6px; font-size: 0.8rem; }
+  .dt-bases .input.is-invalid { border-color: var(--danger); }
+  .dt-bu-table td:nth-child(2), .dt-bu-table td:nth-child(4) { font-family: var(--font-mono); font-size: 13px; }
+</style>

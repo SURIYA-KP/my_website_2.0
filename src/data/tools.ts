@@ -47,6 +47,7 @@ export const tools: Tool[] = [
   },
   {
     slug: 'dev-toolkit',
+    ready: true,
     name: 'Dev Toolkit',
     tagline: 'Base64, URL and HTML encoding, JWT decoding, hashes, UUIDs, timestamps and secure passwords.',
     category: 'Developer',
