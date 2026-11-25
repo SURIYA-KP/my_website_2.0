@@ -6,6 +6,7 @@ export type Seg = string | number;
 export interface Stats {
   keys: number;
   nodes: number;
+  arrays: number;
   maxDepth: number;
   rootType: string;
 }
@@ -17,6 +18,7 @@ export const isContainer = (v: unknown): v is object => v !== null && typeof v =
 export function computeStats(value: unknown): Stats {
   let keys = 0;
   let nodes = 0;
+  let arrays = 0;
   let maxDepth = 0;
   const stack: [unknown, number][] = [[value, 0]];
   while (stack.length) {
@@ -26,6 +28,7 @@ export function computeStats(value: unknown): Stats {
       const depth = d + 1;
       if (depth > maxDepth) maxDepth = depth;
       if (Array.isArray(v)) {
+        arrays++;
         for (let k = 0; k < v.length; k++) stack.push([v[k], depth]);
       } else {
         for (const k in v) {
@@ -36,7 +39,7 @@ export function computeStats(value: unknown): Stats {
       }
     }
   }
-  return { keys, nodes, maxDepth, rootType: typeOf(value) };
+  return { keys, nodes, arrays, maxDepth, rootType: typeOf(value) };
 }
 
 /** Recursively sort object keys (arrays keep their order). */
@@ -114,4 +117,33 @@ export function countLines(text: string) {
   let n = 1;
   for (let i = text.indexOf('\n'); i !== -1; i = text.indexOf('\n', i + 1)) n++;
   return n;
+}
+
+const YAML_KEY = /^(\s*(?:-\s+)*)((?:"(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[^\s#'"{[\]-][^:#]*?|-[^\s:#][^:#]*?))(:)(?=\s|$)/;
+const YAML_VAL = /^(\s*)(.*)$/;
+/** Light YAML highlighter for js-yaml block output. */
+export function highlightYamlLine(line: string) {
+  if (line.length > 4000) return escapeHtml(line);
+  let out = '';
+  let rest = line;
+  const k = YAML_KEY.exec(line);
+  if (k) {
+    out = escapeHtml(k[1]) + `<span class="jss-hk">${escapeHtml(k[2])}</span>:`;
+    rest = line.slice(k[0].length);
+  } else {
+    const dash = /^(\s*(?:-\s+)*)/.exec(line)![0];
+    out = escapeHtml(dash);
+    rest = line.slice(dash.length);
+  }
+  const [, sp, val] = YAML_VAL.exec(rest)!;
+  let cls = '';
+  if (/^(?:true|false)$/.test(val)) cls = 'jss-hb';
+  else if (/^(?:null|~)$/.test(val)) cls = 'jss-hl';
+  else if (/^-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(val)) cls = 'jss-hn';
+  else if (val && !/^[|>][-+]?$/.test(val) && !/^[\[{]\s*[\]}]$/.test(val)) cls = 'jss-hs';
+  return out + escapeHtml(sp) + (cls ? `<span class="${cls}">${escapeHtml(val)}</span>` : escapeHtml(val));
+}
+
+export function byteLength(text: string) {
+  return new Blob([text]).size;
 }

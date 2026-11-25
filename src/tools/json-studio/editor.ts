@@ -1,6 +1,10 @@
 // Plain <textarea> editor with a virtualized line-number gutter, an error-line band,
 // Tab / Shift+Tab indentation, Enter auto-indent and an Esc escape hatch for keyboard users.
-import { countLines } from './util';
+import { CodeView } from './codeview';
+import { countLines, highlightJsonLine } from './util';
+
+/** Above this size the text is shown in a virtualized read-only view: a native textarea needs seconds to lay out megabytes. */
+export const LARGE_TEXT = 1_000_000;
 
 const LH = 20;
 const PAD = 10;
@@ -14,14 +18,22 @@ export class Editor {
   private errorLine = 0;
   private escaped = false;
   private raf = 0;
+  private big: string | null = null;
+  private bigView: CodeView;
+  private bigBox: HTMLElement;
+  private editorEl: HTMLElement;
   indentUnit = '  ';
   onCursor?: (line: number, col: number) => void;
+  onLargeChange?: (large: boolean) => void;
 
   constructor(root: HTMLElement) {
     this.ta = root.querySelector('textarea')!;
     this.gutter = root.querySelector('.jss-gutter')!;
     this.gutterInner = root.querySelector('.jss-gutter-inner')!;
     this.band = root.querySelector('.jss-errband')!;
+    this.bigBox = root.querySelector('.jss-big')!;
+    this.editorEl = root.querySelector('.jss-editor')!;
+    this.bigView = new CodeView(root.querySelector('.jss-big-view')!, (l) => (l.length > 400 ? highlightJsonLine(l.slice(0, 400)) + '…' : highlightJsonLine(l)));
     const ta = this.ta;
     ta.addEventListener('scroll', () => this.schedule(), { passive: true });
     ta.addEventListener('input', () => {
@@ -37,24 +49,92 @@ export class Editor {
   }
 
   get value() {
-    return this.ta.value;
+    return this.big ?? this.ta.value;
+  }
+
+  get isLarge() {
+    return this.big !== null;
   }
 
   set value(v: string) {
+    const wasLarge = this.big !== null;
+    if (v.length > LARGE_TEXT) {
+      this.big = v;
+      this.ta.value = '';
+      this.totalLines = 1;
+      this.bigBox.hidden = false;
+      this.editorEl.hidden = true;
+      this.bigView.setText(v);
+    } else {
+      this.big = null;
+      if (wasLarge) {
+        this.bigView.setText('');
+        this.bigBox.hidden = true;
+        this.editorEl.hidden = false;
+      }
+      this.ta.value = v;
+      this.totalLines = countLines(v);
+      this.ta.scrollTop = 0;
+      this.ta.scrollLeft = 0;
+      this.renderGutter();
+    }
+    if (wasLarge !== (this.big !== null)) this.onLargeChange?.(this.big !== null);
+  }
+
+  /** Move a large document into the real textarea (slow, but the user asked for it). */
+  editLarge() {
+    if (this.big === null) return;
+    const v = this.big;
+    this.big = null;
+    this.bigView.setText('');
+    this.bigBox.hidden = true;
+    this.editorEl.hidden = false;
     this.ta.value = v;
     this.totalLines = countLines(v);
-    this.ta.scrollTop = 0;
-    this.ta.scrollLeft = 0;
+    this.renderGutter();
+    this.onLargeChange?.(false);
+  }
+
+  /**
+   * Replace the whole text. Small documents go through the browser's edit stack so Ctrl+Z
+   * undoes the action; huge ones (or touch devices, where focusing pops the keyboard) are set directly.
+   */
+  setUndoable(text: string) {
+    const ta = this.ta;
+    const coarse = window.matchMedia('(pointer: coarse)').matches;
+    if (!coarse && this.big === null && text.length < 500_000 && ta.value.length < 500_000) {
+      ta.focus({ preventScroll: true });
+      ta.setSelectionRange(0, ta.value.length);
+      if (document.execCommand('insertText', false, text) && ta.value === text) {
+        ta.setSelectionRange(0, 0);
+        ta.scrollTop = 0;
+        ta.scrollLeft = 0;
+        this.totalLines = countLines(text);
+        this.renderGutter();
+        return;
+      }
+    }
+    this.value = text;
+  }
+
+  /** Scroll so that `line` is visible (about a third from the top) without moving focus. */
+  reveal(line: number) {
+    if (this.big !== null) return this.bigView.revealLine(line);
+    const ta = this.ta;
+    const top = (line - 1) * LH + PAD;
+    if (top < ta.scrollTop || top + LH > ta.scrollTop + ta.clientHeight) ta.scrollTop = Math.max(0, top - ta.clientHeight / 3);
     this.renderGutter();
   }
 
   setErrorLine(line: number) {
     this.errorLine = line;
+    if (this.big !== null) this.bigView.setMarkLine(line);
     this.renderGutter();
   }
 
   /** Select the error position, scroll it into view (about a third from the top) and focus. */
   goTo(pos: number, line: number) {
+    if (this.big !== null) return this.bigView.revealLine(line);
     const ta = this.ta;
     ta.focus({ preventScroll: true });
     ta.setSelectionRange(pos, Math.min(pos + 1, ta.value.length));
@@ -78,6 +158,7 @@ export class Editor {
   }
 
   renderGutter() {
+    if (this.big !== null) return;
     const st = this.ta.scrollTop;
     const h = this.ta.clientHeight || 400;
     const first = Math.floor(Math.max(0, st - PAD) / LH);

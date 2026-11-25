@@ -11,6 +11,7 @@ export class CodeView {
   private inner: HTMLElement;
   private raf = 0;
   private lastRange = '';
+  private markLine = 0;
 
   constructor(private host: HTMLElement, private highlight: (line: string) => string = escapeHtml) {
     host.classList.add('jss-cv');
@@ -26,7 +27,7 @@ export class CodeView {
     return this.text;
   }
 
-  setText(text: string) {
+  setText(text: string, keepScroll = false) {
     this.text = text;
     this.lines = text === '' ? [] : text.split('\n');
     let max = 0;
@@ -36,15 +37,33 @@ export class CodeView {
     this.inner.style.height = `${this.lines.length * LH + 16}px`;
     this.inner.style.width = `calc(${Math.min(max, 20000) + gutterCh + 4}ch + 24px)`;
     this.lastRange = '';
-    this.host.scrollTop = 0;
+    if (!keepScroll) {
+      this.host.scrollTop = 0;
+      this.host.scrollLeft = 0;
+    }
     this.render();
+  }
+
+  /** Highlight one line (1-based, 0 = none) as an error. */
+  setMarkLine(line: number) {
+    this.markLine = line;
+    this.render(true);
+  }
+
+  /** Scroll so that `line` (1-based) sits about a third from the top. */
+  revealLine(line: number) {
+    const top = (line - 1) * LH + 8;
+    const h = this.host.clientHeight;
+    if (top < this.host.scrollTop || top + LH > this.host.scrollTop + h) this.host.scrollTop = Math.max(0, top - h / 3);
+    this.render(true);
   }
 
   private schedule() {
     if (!this.raf) this.raf = requestAnimationFrame(() => ((this.raf = 0), this.render()));
   }
 
-  render() {
+  render(force = false) {
+    if (force) this.lastRange = '';
     const h = this.host.clientHeight || 600;
     const first = Math.max(0, Math.floor(this.host.scrollTop / LH) - OVERSCAN);
     const last = Math.min(this.lines.length, Math.ceil((this.host.scrollTop + h) / LH) + OVERSCAN);
@@ -53,7 +72,7 @@ export class CodeView {
     this.lastRange = key;
     let html = '';
     for (let i = first; i < last; i++) {
-      html += `<div class="jss-cv-line" style="top:${i * LH + 8}px"><span class="jss-cv-ln">${i + 1}</span><span class="jss-cv-code">${this.highlight(this.lines[i])}</span></div>`;
+      html += `<div class="jss-cv-line${i + 1 === this.markLine ? ' is-error' : ''}" style="top:${i * LH + 8}px"><span class="jss-cv-ln">${i + 1}</span><span class="jss-cv-code">${this.highlight(this.lines[i])}</span></div>`;
     }
     this.inner.innerHTML = html;
   }

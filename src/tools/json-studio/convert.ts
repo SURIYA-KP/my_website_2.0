@@ -122,3 +122,45 @@ export function csvToJson(text: string, opts: CsvParseOptions = {}): unknown[] {
     return arrayify(obj) as Record<string, unknown>;
   });
 }
+
+// ---------- detection ----------
+export type InputFormat = 'json' | 'yaml' | 'csv' | 'jsonl';
+
+/** JSON Lines: two or more lines, each one a JSON value. */
+export function jsonLinesToArray(text: string): unknown[] | null {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length < 2) return null;
+  try {
+    return lines.map((l) => JSON.parse(l));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Guess what non-JSON text is. Anything starting like JSON stays JSON (so "Fix it" can repair it);
+ * YAML needs `key:` / `- ` structure that parses to an object or array; CSV needs a header and
+ * rows with a consistent number of delimited fields.
+ */
+export function sniffFormat(text: string): InputFormat {
+  const t = text.replace(/^\ufeff/, '').trimStart();
+  if (!t || t[0] === '"') return 'json';
+  if (t[0] === '{' || t[0] === '[') return jsonLinesToArray(t) ? 'jsonl' : 'json';
+  const lines = t.split(/\r?\n/).filter((l) => l.trim() && !/^\s*#/.test(l)).slice(0, 30);
+  const yamlish = lines.filter((l) => /^\s*(?:-\s|-$|---|[^\s,:][^,:]*:(?:\s|$)|"[^"]+":\s|'[^']+':\s)/.test(l)).length;
+  if (lines.length && yamlish / lines.length >= 0.8) {
+    try {
+      const v = yamlToJson(t);
+      if (v && typeof v === 'object') return 'yaml';
+    } catch {
+      /* not YAML */
+    }
+  }
+  if (lines.length >= 2) {
+    const res = Papa.parse(lines.slice(0, 20).join('\n'), { delimiter: '' });
+    const rows = res.data as string[][];
+    const w = rows[0]?.length ?? 0;
+    if (w >= 2 && rows.filter((r) => r.length === w).length >= Math.max(2, rows.length * 0.8)) return 'csv';
+  }
+  return 'json';
+}

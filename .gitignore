@@ -7,3 +7,4 @@ tests/output/
 .DS_Store
 tests/fixtures/pdf-toolkit/
 tests/fixtures/image-studio/
+tests/fixtures/json-studio/
