@@ -93,10 +93,23 @@ export function isNull(col: Column, r: number): boolean {
   }
 }
 
+const PLAIN_INT = /(^|[\s_.-])(id|code|zip|year|postcode|number|no)$|^(id|year|zip)$/i;
+const plainCache = new WeakMap<Column, boolean>();
+/** Identifier-like integer columns (IDs, years, ZIP codes) are shown without digit grouping. */
+export function isPlainInt(col: Column) {
+  let p = plainCache.get(col);
+  if (p === undefined) {
+    p = col.type === 'integer' && PLAIN_INT.test(col.name.trim());
+    plainCache.set(col, p);
+  }
+  return p;
+}
+
 /** Display text for a table cell. */
 export function displayText(col: Column, r: number): string {
   switch (col.type) {
     case 'integer':
+      if (isPlainInt(col)) return rawText(col, r);
       return formatNumber((col.data as Float64Array)[r], true);
     case 'float':
       return formatNumber((col.data as Float64Array)[r]);

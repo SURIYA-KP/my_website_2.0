@@ -74,6 +74,7 @@ export const tools: Tool[] = [
   },
   {
     slug: 'data-explorer',
+    ready: true,
     name: 'Data Explorer',
     tagline: 'Open a CSV, then sort, filter, profile columns, chart it and query it with SQL.',
     category: 'Data',

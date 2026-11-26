@@ -51,7 +51,7 @@ export class Grid {
     this.body.className = 'dx-body';
     this.body.setAttribute('role', 'rowgroup');
     this.empty = document.createElement('div');
-    this.empty.className = 'dx-empty';
+    this.empty.className = 'dx-noresults';
     this.empty.hidden = true;
     this.scroller.append(this.head, this.body);
     root.append(this.scroller, this.empty);
@@ -238,13 +238,15 @@ export class Grid {
 
   private autoWidths(v: DataView): number[] {
     const sample = Math.min(v.ds.rowCount, 300);
+    const extra = this.opts.filters ? 100 : 66; // type icon, sort mark, filter button, padding
     return v.ds.columns.map((col) => {
-      let max = col.name.length + 4;
+      let max = 0;
       for (let r = 0; r < sample; r++) {
         const len = displayText(col, r).length;
         if (len > max) max = len;
       }
-      return Math.round(Math.min(320, Math.max(84, max * 7.6 + 34)));
+      const head = col.name.length * 7.4 + extra;
+      return Math.round(Math.min(320, Math.max(84, max * 7.4 + 26, Math.min(260, head))));
     });
   }
 

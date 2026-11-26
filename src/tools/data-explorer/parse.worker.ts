@@ -72,9 +72,9 @@ function parseJson(text: string): Record<string, unknown>[] {
   try {
     data = JSON.parse(t);
   } catch (err) {
-    // Not one JSON document: try newline-delimited JSON.
+    // Not one JSON document: try newline-delimited JSON (unless it clearly is one broken array).
     const lines = t.split(/\r?\n/).filter((l) => l.trim());
-    if (lines.length > 1) {
+    if (lines.length > 1 && !t.startsWith('[') && lines.every((l) => /^\s*[{[]/.test(l))) {
       return lines.map((l, i) => {
         try {
           return flatten(JSON.parse(l));
@@ -83,7 +83,7 @@ function parseJson(text: string): Record<string, unknown>[] {
         }
       });
     }
-    throw new Error(`Invalid JSON: ${(err as Error).message}`);
+    throw new Error(`This doesn't look like valid JSON: ${(err as Error).message}`);
   }
   if (!Array.isArray(data) && data && typeof data === 'object') {
     // { "rows": [...] } style wrapper: use the first array of objects found.
@@ -117,6 +117,7 @@ function parseDelimited(req: ParseRequest, bytes: number, progress: Progress): P
         if (!delimiter) delimiter = res.meta.delimiter;
         for (const r of res.data) rows.push(r);
         for (const err of res.errors) {
+          if (err.code === 'UndetectableDelimiter') continue; // single-column data: comma default is fine
           errorCount++;
           if (warnings.length < 5) warnings.push(`Row ${(err.row ?? 0) + 1}: ${err.message}`);
         }

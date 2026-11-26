@@ -433,7 +433,7 @@ export function drawChart(canvas: HTMLCanvasElement, data: ChartData, type: Char
       },
       options: {
         plugins: {
-          legend: { position: 'right' },
+          legend: { position: canvas.clientWidth < 560 ? 'bottom' : 'right' },
           tooltip: { callbacks: { label: (c) => `${c.label}: ${formatStat(Number(c.raw))}` } },
         },
       },
@@ -466,6 +466,7 @@ export function drawChart(canvas: HTMLCanvasElement, data: ChartData, type: Char
                 backgroundColor: alpha(c, 0.85),
                 hoverBackgroundColor: c,
                 borderRadius: hist ? 0 : 3,
+                maxBarThickness: hist ? undefined : 72,
                 barPercentage: hist ? 1 : 0.85,
                 categoryPercentage: hist ? 1 : 0.8,
                 borderWidth: hist ? 1 : 0,
