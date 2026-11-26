@@ -1,27 +1,13 @@
 // Background rendering: log-scaled loss heatmap + marching-squares contours, cached offscreen.
-import type { Landscape } from './engine';
+import type { Landscape, View } from './engine';
 
-export interface View {
-  xmin: number;
-  xmax: number;
-  ymin: number;
-  ymax: number;
-}
+export type { View };
 
-export interface Theme {
-  dark: boolean;
+/** Colours the cached background needs (the rest of the canvas palette lives in the UI). */
+export interface BgTheme {
   lut: Uint8ClampedArray;
   contour: string;
   contourMajor: string;
-  text: string;
-  textMuted: string;
-  bg: string;
-  bgElev: string;
-  border: string;
-  halo: string;
-  danger: string;
-  success: string;
-  warning: string;
 }
 
 /* ---------- Perceptual colormap (OKLCH stops interpolated in OKLab) ---------- */
@@ -74,11 +60,11 @@ export function makeLut(stops: Stop[]): Uint8ClampedArray {
 // Lightness rises monotonically from valleys to peaks in both themes (perceptually ordered),
 // with a gentle hue sweep and low chroma so the coloured optimizer paths stay the most salient thing.
 export const LIGHT_STOPS: Stop[] = [
-  [0, 0.6, 0.085, 268],
-  [0.3, 0.73, 0.075, 232],
-  [0.62, 0.86, 0.06, 178],
-  [0.85, 0.94, 0.045, 112],
-  [1, 0.985, 0.02, 85],
+  [0, 0.56, 0.1, 266],
+  [0.3, 0.7, 0.085, 232],
+  [0.62, 0.85, 0.065, 180],
+  [0.85, 0.935, 0.05, 112],
+  [1, 0.985, 0.025, 85],
 ];
 export const DARK_STOPS: Stop[] = [
   [0, 0.16, 0.035, 285],
@@ -117,17 +103,11 @@ export function computeField(l: Landscape, v: View, gw: number, gh: number): Fie
   const step = Math.max(1, Math.floor(raw.length / 4000));
   const sample: number[] = [];
   for (let k = 0; k < raw.length; k += step) if (Number.isFinite(raw[k])) sample.push(raw[k]);
-  let transform: (f: number) => number;
-  if (l.fmin !== null) {
-    const fmin = l.fmin;
-    const g = Float64Array.from(sample.map((f) => Math.max(0, f - fmin))).sort();
-    const delta = Math.max(1e-12, quantile(g, 0.5) * 1e-5);
-    transform = (f) => Math.log10(Math.max(0, f - fmin) + delta);
-  } else {
-    const a = Float64Array.from(sample.map((f) => Math.abs(f))).sort();
-    const c = Math.max(1e-9, quantile(a, 0.5) * 0.05);
-    transform = (f) => Math.sign(f) * Math.log10(1 + Math.abs(f) / c);
-  }
+  // log10(f − f* + δ): δ (a tiny fraction of the median height) keeps the minimum finite.
+  const fmin = l.fmin;
+  const g = Float64Array.from(sample.map((f) => Math.max(0, f - fmin))).sort();
+  const delta = Math.max(1e-12, quantile(g, 0.5) * 1e-5);
+  const transform = (f: number) => Math.log10(Math.max(0, f - fmin) + delta);
   const u = new Float32Array(raw.length);
   for (let k = 0; k < raw.length; k++) u[k] = transform(raw[k]);
   const us = Float64Array.from(sample.map(transform)).sort();
@@ -208,7 +188,8 @@ export function renderBackground(
   cssW: number,
   cssH: number,
   dpr: number,
-  theme: Theme,
+  theme: BgTheme,
+  contours = true,
 ): Field {
   const gw = Math.max(2, Math.round(cssW));
   const gh = Math.max(2, Math.round(cssH));
@@ -237,6 +218,7 @@ export function renderBackground(
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(tmp, 0, 0, out.width, out.height);
 
+  if (!contours) return field;
   // Contours: evenly spaced in log-loss, every 3rd one emphasised.
   const sx = out.width / gw;
   const sy = out.height / gh;

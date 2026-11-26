@@ -1,6 +1,338 @@
 ---
 import ToolLayout from '../../layouts/ToolLayout.astro';
+
+const svg = (body: string, size = 14) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+const ico = {
+  play: '<svg class="opt-ico-play" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></svg>' +
+    '<svg class="opt-ico-pause" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" hidden><rect x="5" y="4" width="5" height="16" rx="1.2"/><rect x="14" y="4" width="5" height="16" rx="1.2"/></svg>',
+  step: svg('<path d="M5 5l9 7-9 7z" fill="currentColor"/><path d="M19 5v14"/>'),
+  reset: svg('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>'),
+  share: svg('<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>'),
+  bulb: svg('<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2h5c.1-.8.5-1.5 1.1-2A6 6 0 0 0 12 3z"/>', 18),
+  undo: svg('<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>', 13),
+  tap: svg('<path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10"/><path d="M12 9.5a1.5 1.5 0 0 1 3 0V11"/><path d="M15 10.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-.5a6 6 0 0 1-4.6-2.2L5 16.3a1.5 1.5 0 0 1 2.3-1.9L9 16"/>', 16),
+};
 ---
 <ToolLayout slug="optimizer-viz">
-  <div class="card"><p class="muted">Coming soon.</p></div>
+  <div class="opt" id="opt-root">
+    <!-- ============ lessons ============ -->
+    <section class="opt-lessons" aria-label="Lessons">
+      <div class="opt-presets" id="opt-presets" role="group" aria-label="Preset lessons"></div>
+      <div class="opt-lesson" aria-live="polite">
+        <div class="opt-lesson-head"><Fragment set:html={ico.bulb} /><span class="opt-lesson-tag" id="opt-lesson-tag">Landscape</span><strong id="opt-lesson-title"></strong></div>
+        <p class="small" id="opt-lesson-text"></p>
+      </div>
+    </section>
+
+    <div class="opt-grid">
+      <!-- ============ controls ============ -->
+      <aside class="card opt-ctrl" aria-label="Race settings">
+        <div class="opt-sec">
+          <h2 class="opt-h">Landscape</h2>
+          <div class="opt-formula" id="opt-formula"></div>
+          <div class="opt-field" id="opt-kappa-field">
+            <div class="opt-lbl"><label for="opt-kappa">Condition number</label><output id="opt-kappa-out" for="opt-kappa"></output></div>
+            <input type="range" id="opt-kappa" min="0" max="2" step="0.01" value="1.301" />
+          </div>
+        </div>
+
+        <div class="opt-sec">
+          <h2 class="opt-h">Racers <span class="faint small">toggle · click a name to tune</span></h2>
+          <div class="opt-racers" id="opt-racers" role="group" aria-label="Optimizers"></div>
+        </div>
+
+        <div class="opt-sec">
+          <div class="opt-sec-head">
+            <h2 class="opt-h opt-tune-title" id="opt-tune-title"></h2>
+            <button type="button" class="btn btn-sm btn-ghost" id="opt-tune-reset" title="Restore the tuned defaults for this landscape"><Fragment set:html={ico.undo} />Defaults</button>
+          </div>
+          <div class="opt-tune" id="opt-tune"></div>
+        </div>
+
+        <div class="opt-sec">
+          <h2 class="opt-h">Gradient</h2>
+          <div class="opt-field">
+            <div class="opt-lbl"><label for="opt-noise">Gradient noise</label><output id="opt-noise-out" for="opt-noise"></output></div>
+            <input type="range" id="opt-noise" min="0" max="1" step="0.01" value="0" />
+          </div>
+          <div class="opt-pair">
+            <div class="opt-field">
+              <label class="opt-lbl" for="opt-clip">Clip norm</label>
+              <select class="select opt-select" id="opt-clip"></select>
+            </div>
+            <div class="opt-field">
+              <label class="opt-lbl" for="opt-max">Max steps</label>
+              <select class="select opt-select" id="opt-max"></select>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ============ stage ============ -->
+      <div class="card opt-stage">
+        <div class="opt-strip" id="opt-strip" role="group" aria-label="Loss landscape"></div>
+        <div class="opt-transport">
+          <div class="opt-stepper" aria-live="off">
+            <span class="opt-tile-k">Step</span>
+            <span class="mono opt-step-num" id="opt-step-num">0</span>
+            <span class="mono faint small" id="opt-step-max"></span>
+          </div>
+          <div class="opt-buttons">
+            <select class="select opt-select opt-speed" id="opt-speed" aria-label="Animation speed"></select>
+            <button type="button" class="btn btn-sm" id="opt-reset" title="Reset (R)"><Fragment set:html={ico.reset} /><span class="opt-hide-xs">Reset</span></button>
+            <button type="button" class="btn btn-sm" id="opt-step" title="Single step (N)"><Fragment set:html={ico.step} /><span class="opt-hide-xs">Step</span></button>
+            <button type="button" class="btn btn-sm btn-primary opt-play" id="opt-play" aria-pressed="false" title="Play / pause (Space)"><Fragment set:html={ico.play} /><span class="opt-play-text">Play</span></button>
+          </div>
+        </div>
+        <div class="opt-canvas-wrap">
+          <canvas id="opt-canvas" class="opt-canvas" tabindex="0" role="img" aria-label="Loss landscape. Click or tap to set the start point; arrow keys move it, Enter launches."></canvas>
+          <div class="opt-readout mono small" id="opt-readout" hidden></div>
+          <div class="opt-hint small" id="opt-hint"><Fragment set:html={ico.tap} />Click anywhere to launch from there</div>
+        </div>
+        <div class="opt-foot small">
+          <span>Start <b class="mono" id="opt-start"></b></span>
+          <span class="opt-keys faint">
+            <span><i class="opt-k-star"></i>global min</span>
+            <span><i class="opt-k-ring"></i>local min</span>
+            <span><i class="opt-k-dia"></i>saddle</span>
+            <span class="opt-hide-xs"><i class="opt-k-tri"></i>max</span>
+          </span>
+          <button type="button" class="btn btn-sm btn-ghost opt-share" id="opt-share" title="Copy a link to this exact race"><Fragment set:html={ico.share} />Share</button>
+        </div>
+      </div>
+
+      <!-- ============ side ============ -->
+      <div class="opt-side">
+        <div class="card opt-standings">
+          <div class="opt-tiles">
+            <div class="opt-tile"><span class="opt-tile-k">Converged</span><span class="opt-tile-v mono" id="opt-tile-finished">0 / 0</span></div>
+            <div class="opt-tile"><span class="opt-tile-k">Leader</span><span class="opt-tile-v opt-tile-leader" id="opt-tile-leader">–</span></div>
+            <div class="opt-tile"><span class="opt-tile-k">Best f</span><span class="opt-tile-v mono" id="opt-tile-best">–</span></div>
+          </div>
+          <ol class="opt-legend" id="opt-legend" aria-label="Standings"></ol>
+          <p class="small muted opt-legend-empty" id="opt-legend-empty" hidden>No racers. Switch one on in the Racers list.</p>
+          <p class="small opt-summary" id="opt-summary"></p>
+          <div class="opt-chart-head small"><span>Loss gap f − f* (log)</span><span class="faint">vs step</span></div>
+          <canvas class="opt-chart" id="opt-chart" role="img" aria-label="Loss versus step for each optimizer, log scale"></canvas>
+        </div>
+
+      </div>
+
+      <div class="card opt-explain">
+          <div class="opt-ex-head">
+            <h2 class="opt-ex-name" id="opt-ex-name"></h2>
+            <span class="faint small" id="opt-ex-paper"></span>
+          </div>
+          <p class="small opt-ex-summary" id="opt-ex-summary"></p>
+          <div class="opt-ex-tex" id="opt-ex-tex"></div>
+          <h3 class="opt-h">What to notice on <span id="opt-ex-land"></span></h3>
+          <ul class="opt-tips small" id="opt-ex-tips"></ul>
+        </div>
+    </div>
+    <div class="visually-hidden" aria-live="polite" id="opt-live"></div>
+  </div>
 </ToolLayout>
+
+<script>
+  import { init } from '../../tools/optimizer-viz/main';
+  init();
+</script>
+
+<style is:global>
+  .opt .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ----- lessons ----- */
+  .opt .opt-lessons { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 16px; margin-bottom: 16px; align-items: stretch; }
+  .opt .opt-presets { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; align-self: start; }
+  .opt .opt-preset {
+    position: relative; text-align: left; border: 1px solid var(--border); background: var(--bg-elev); color: var(--text);
+    border-radius: var(--radius); padding: 9px 10px 8px; font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 3px;
+    transition: border-color 0.12s, background 0.12s;
+  }
+  .opt .opt-preset:hover { border-color: var(--border-strong); background: var(--bg-hover); }
+  .opt .opt-preset[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); }
+  .opt .opt-preset-n { font-family: var(--font-mono); font-size: 0.68rem; font-weight: 650; color: var(--text-faint); }
+  .opt .opt-preset[aria-pressed='true'] .opt-preset-n { color: var(--accent); }
+  .opt .opt-preset b { font-size: 0.82rem; font-weight: 650; line-height: 1.25; }
+  .opt .opt-preset small { font-size: 0.71rem; color: var(--text-faint); line-height: 1.3; }
+  .opt .opt-lesson { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px 14px; background: linear-gradient(160deg, var(--accent-soft), var(--bg-elev) 75%); min-width: 0; }
+  .opt .opt-lesson p { margin: 6px 0 0; color: var(--text-muted); line-height: 1.5; }
+  .opt .opt-lesson-head { display: flex; align-items: center; gap: 8px; color: var(--accent); flex-wrap: wrap; }
+  .opt .opt-lesson-head strong { color: var(--text); }
+  .opt .opt-lesson-tag { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--bg-elev); border: 1px solid var(--border); color: var(--text-muted); }
+
+  /* ----- layout ----- */
+  .opt .opt-grid { display: grid; gap: 16px; align-items: start; grid-template-columns: 268px minmax(0, 1fr) 330px; grid-template-rows: auto 1fr; grid-template-areas: 'ctrl stage side' 'ctrl explain side'; }
+  .opt .opt-grid > * { min-width: 0; }
+  .opt .opt-ctrl { grid-area: ctrl; padding: 4px 16px; }
+  .opt .opt-stage { grid-area: stage; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .opt .opt-side { grid-area: side; display: flex; flex-direction: column; gap: 16px; }
+  @media (max-width: 1180px) {
+    .opt .opt-grid { grid-template-columns: 260px minmax(0, 1fr); grid-template-rows: none; grid-template-areas: 'ctrl stage' 'ctrl side' 'ctrl explain'; }
+  }
+  @media (max-width: 1000px) {
+    .opt .opt-lessons { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 760px) {
+    .opt .opt-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'stage' 'side' 'explain' 'ctrl'; }
+    .opt .opt-hide-xs { display: none; }
+    .opt .opt-stage .opt-strip { display: flex; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 4px; scrollbar-width: thin; }
+    .opt .opt-stage .opt-land { flex: 0 0 74px; scroll-snap-align: start; }
+  }
+  @media (max-width: 560px) {
+    .opt .opt-presets { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px; }
+    .opt .opt-preset { flex: 0 0 58%; scroll-snap-align: start; }
+  }
+
+  /* ----- control column ----- */
+  .opt .opt-sec { padding: 14px 0; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+  .opt .opt-sec:last-child { border-bottom: 0; }
+  .opt .opt-sec-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .opt .opt-h { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin: 0; font-weight: 650; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .opt .opt-h .small { text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .opt .opt-tune-title { align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; font-size: 0.9rem; color: var(--text); }
+  .opt .opt-tune-title::before { content: 'Tune'; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-right: 2px; }
+  .opt .opt-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .opt .opt-field[hidden] { display: none; }
+  .opt .opt-lbl { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.82rem; font-weight: 550; color: var(--text); margin: 0; }
+  .opt .opt-lbl output { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .opt input[type='range'] { margin: 0; height: 22px; width: 100%; }
+  .opt .opt-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .opt .opt-select { height: 30px; font-size: 0.84rem; padding: 4px 24px 4px 8px; }
+  .opt .opt-formula { font-size: 0.92rem; overflow-x: auto; overflow-y: hidden; padding: 6px 2px; color: var(--text); min-height: 1.9em; scrollbar-width: thin; }
+  .opt .opt-formula .katex { font-size: 1.02em; }
+
+  .opt .opt-racers { display: flex; flex-direction: column; gap: 3px; }
+  .opt .opt-racer { display: flex; align-items: center; gap: 6px; border-radius: var(--radius-sm); padding: 2px; border: 1px solid transparent; transition: background 0.12s, border-color 0.12s; }
+  .opt .opt-racer.is-selected { background: var(--bg-sunken); border-color: var(--border); }
+  .opt .opt-switch { position: relative; display: inline-flex; cursor: pointer; flex: 0 0 auto; }
+  .opt .opt-switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+  .opt .opt-switch-box {
+    width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center;
+    border: 1.5px solid var(--border-strong); background: var(--bg-elev); transition: background 0.12s, border-color 0.12s, opacity 0.12s;
+  }
+  .opt .opt-switch-box .opt-shape { opacity: 0.35; filter: grayscale(1); transition: opacity 0.12s; }
+  .opt .opt-switch input:checked + .opt-switch-box { border-color: var(--rc); background: color-mix(in srgb, var(--rc) 14%, var(--bg-elev)); }
+  .opt .opt-switch input:checked + .opt-switch-box .opt-shape { opacity: 1; filter: none; }
+  .opt .opt-switch input:focus-visible + .opt-switch-box { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .opt .opt-racer-btn {
+    flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+    border: 0; background: none; color: var(--text-muted); font: inherit; font-size: 0.85rem; font-weight: 600; padding: 4px 6px; border-radius: 5px; cursor: pointer; text-align: left;
+  }
+  .opt .opt-racer.is-on .opt-racer-btn { color: var(--text); }
+  .opt .opt-racer-btn:hover { background: var(--bg-hover); }
+  .opt .opt-racer-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .opt .opt-racer-lr { font-size: 0.74rem; color: var(--text-faint); font-weight: 500; white-space: nowrap; }
+
+  .opt .opt-tune { display: flex; flex-direction: column; gap: 10px; }
+  .opt .opt-tune.is-off { opacity: 0.6; }
+  .opt .opt-sym { font-family: var(--font-mono); color: var(--text-faint); font-weight: 500; margin-left: 2px; }
+  .opt .opt-hp .opt-num { width: 92px; flex: 0 0 92px; height: 26px; padding: 2px 6px; font-family: var(--font-mono); font-size: 0.78rem; text-align: right; }
+
+  /* ----- stage ----- */
+  .opt .opt-strip { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
+  .opt .opt-land {
+    display: flex; flex-direction: column; gap: 3px; padding: 3px 3px 4px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--bg-elev); color: var(--text-muted); font: inherit; font-size: 0.68rem; letter-spacing: -0.01em; font-weight: 600; cursor: pointer; min-width: 0;
+    transition: border-color 0.12s, background 0.12s, color 0.12s;
+  }
+  .opt .opt-land canvas { width: 100%; aspect-ratio: 16 / 10; height: auto; border-radius: 4px; display: block; }
+  .opt .opt-land span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+  .opt .opt-land:hover { color: var(--text); border-color: var(--border-strong); }
+  .opt .opt-land[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .opt .opt-transport { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .opt .opt-stepper { display: flex; align-items: baseline; gap: 8px; }
+  .opt .opt-step-num { font-size: 1.35rem; font-weight: 650; font-variant-numeric: tabular-nums; min-width: 3ch; }
+  .opt .opt-buttons { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+  .opt .opt-buttons .opt-speed { width: auto; height: 28px; }
+  .opt .opt-play { min-width: 86px; }
+  .opt .opt-canvas-wrap { position: relative; width: 100%; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: var(--bg-sunken); }
+  .opt .opt-canvas { display: block; width: 100%; aspect-ratio: 4 / 3; max-height: 72vh; touch-action: manipulation; cursor: crosshair; }
+  .opt .opt-canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .opt .opt-readout {
+    position: absolute; top: 8px; right: 8px; display: flex; gap: 10px; padding: 4px 9px; border-radius: 999px; pointer-events: none;
+    background: color-mix(in srgb, var(--bg-elev) 88%, transparent); border: 1px solid var(--border); color: var(--text-muted); box-shadow: var(--shadow-sm);
+    font-variant-numeric: tabular-nums;
+  }
+  .opt .opt-readout[hidden] { display: none; }
+  .opt .opt-readout b { color: var(--text); font-weight: 600; }
+  .opt .opt-hint {
+    position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+    padding: 5px 12px; border-radius: 999px; background: color-mix(in srgb, var(--bg-elev) 90%, transparent); border: 1px solid var(--border);
+    color: var(--text); font-weight: 550; pointer-events: none; box-shadow: var(--shadow); animation: opt-pulse 2.4s ease-in-out infinite;
+  }
+  .opt .opt-hint[hidden] { display: none; }
+  @keyframes opt-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.72; } }
+  @media (prefers-reduced-motion: reduce) { .opt .opt-hint { animation: none; } }
+  .opt .opt-foot { display: flex; align-items: center; justify-content: space-between; gap: 6px 14px; flex-wrap: wrap; color: var(--text-muted); }
+  .opt .opt-foot b { color: var(--text); font-weight: 600; }
+  .opt .opt-keys { display: inline-flex; gap: 12px; flex-wrap: wrap; }
+  .opt .opt-keys > span { display: inline-flex; align-items: center; gap: 5px; }
+  .opt .opt-keys i { display: inline-block; width: 10px; height: 10px; background: var(--text-muted); }
+  .opt .opt-keys .opt-k-star { clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+  .opt .opt-keys .opt-k-ring { background: none; border: 1.6px solid var(--text-muted); border-radius: 50%; }
+  .opt .opt-keys .opt-k-dia { background: none; border: 1.6px solid var(--text-muted); transform: rotate(45deg) scale(0.8); }
+  .opt .opt-keys .opt-k-tri { clip-path: polygon(50% 5%, 100% 95%, 0 95%); }
+  .opt .opt-share { margin-left: auto; }
+
+  /* ----- side ----- */
+  .opt .opt-standings { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .opt .opt-tiles { display: grid; grid-template-columns: 0.9fr 1.25fr 1fr; gap: 8px; }
+  .opt .opt-tile { background: var(--bg-sunken); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .opt .opt-tile-k { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); font-weight: 650; white-space: nowrap; }
+  .opt .opt-tile-v { font-size: 1.12rem; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .opt .opt-tile-leader { display: flex; align-items: center; gap: 6px; font-size: 1rem; }
+  .opt .opt-tile-leader .opt-shape { flex: 0 0 auto; }
+
+  .opt .opt-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .opt .opt-row {
+    display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 5px 8px 5px 6px;
+    border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-elev); position: relative; overflow: hidden;
+  }
+  .opt .opt-row::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--rc); }
+  .opt .opt-row.is-selected { border-color: color-mix(in srgb, var(--rc) 55%, var(--border)); background: color-mix(in srgb, var(--rc) 7%, var(--bg-elev)); }
+  .opt .opt-rank {
+    width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 0.74rem; font-weight: 700;
+    color: var(--text-faint); background: var(--bg-sunken); font-variant-numeric: tabular-nums;
+  }
+  .opt .opt-rank[data-place='1'] { background: var(--accent); color: var(--accent-text); }
+  .opt .opt-rank[data-place='2'], .opt .opt-rank[data-place='3'] { background: var(--accent-soft); color: var(--accent); }
+  .opt .opt-rank[data-place='4'] { background: var(--bg-sunken); color: var(--text-muted); }
+  .opt .opt-row-main { display: flex; flex-direction: column; align-items: flex-start; gap: 0; min-width: 0; border: 0; background: none; padding: 0; color: var(--text); font: inherit; cursor: pointer; text-align: left; }
+  .opt .opt-row-main:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  .opt .opt-row-name { display: inline-flex; align-items: center; gap: 6px; font-weight: 650; font-size: 0.86rem; }
+  .opt .opt-row-sub { font-size: 0.72rem; color: var(--text-faint); }
+  .opt .opt-row-sub b { font-family: var(--font-mono); font-weight: 600; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .opt .opt-row-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .opt .opt-row-loss { font-size: 0.78rem; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .opt .opt-pill { font-size: 0.68rem; font-weight: 650; padding: 1px 7px; border-radius: 999px; white-space: nowrap; background: var(--bg-sunken); color: var(--text-muted); }
+  .opt .opt-pill[data-tone='ok'] { background: var(--success-soft); color: var(--success); }
+  .opt .opt-pill[data-tone='bad'] { background: var(--danger-soft); color: var(--danger); }
+  .opt .opt-pill[data-tone='warn'] { background: var(--warning-soft); color: var(--warning); }
+  .opt .opt-pill[data-tone='muted'] { color: var(--text-faint); }
+  .opt .opt-pill[data-tone='run'] { background: color-mix(in srgb, var(--rc) 14%, var(--bg-elev)); color: var(--text-muted); }
+  .opt .opt-legend-empty { margin: 0; }
+  .opt .opt-summary { margin: 0; color: var(--text-muted); min-height: 2.6em; line-height: 1.4; }
+  .opt .opt-chart-head { display: flex; justify-content: space-between; align-items: center; color: var(--text-muted); font-weight: 600; }
+  .opt .opt-chart { width: 100%; height: 140px; display: block; }
+
+  .opt .opt-explain { grid-area: explain; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .opt .opt-ex-head { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 10px; flex-wrap: wrap; }
+  .opt .opt-ex-name { display: inline-flex; align-items: center; gap: 7px; margin: 0; font-size: 1.05rem; }
+  .opt .opt-ex-summary { margin: 0; color: var(--text-muted); line-height: 1.5; }
+  .opt .opt-ex-tex {
+    background: var(--bg-sunken); border-radius: var(--radius-sm); padding: 8px 10px; overflow-x: auto; overflow-y: hidden;
+    border-left: 3px solid var(--rc, var(--accent)); font-size: 0.9rem; min-height: 3em; color: var(--text); scrollbar-width: thin;
+  }
+  .opt .opt-ex-tex .katex-display { margin: 0.2em 0; }
+  .opt .opt-explain .opt-h { margin-top: 4px; }
+  .opt .opt-tips { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; color: var(--text-muted); line-height: 1.45; }
+  .opt .opt-tips li { padding-left: 14px; position: relative; }
+  .opt .opt-tips li::before { content: ''; position: absolute; left: 2px; top: 0.6em; width: 5px; height: 5px; border-radius: 50%; background: var(--border-strong); }
+  .opt .opt-tips li.is-mine { color: var(--text); }
+  .opt .opt-tips li.is-mine::before { background: var(--rc, var(--accent)); }
+  .opt .opt-tip-dots { display: inline-flex; gap: 2px; margin-right: 6px; vertical-align: 1px; }
+  .opt .opt-tip-dots i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .opt .opt-shape { display: inline-block; flex: 0 0 auto; }
+</style>
