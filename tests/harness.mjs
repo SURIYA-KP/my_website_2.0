@@ -28,7 +28,7 @@ export const OUT_DIR = path.join(here, 'output');
 export const FIXTURES = path.join(here, 'fixtures');
 
 export async function runToolTest(slug, fn, opts = {}) {
-  const { viewport = { width: 1366, height: 900 }, allowConsoleErrors = [], colorScheme = 'light' } = opts;
+  const { viewport = { width: 1366, height: 900 }, allowConsoleErrors = [], colorScheme = 'light', path: pagePath = `/tools/${slug}/` } = opts;
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const browser = await chromium.launch();
   const context = await browser.newContext({ viewport, colorScheme, acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] });
@@ -56,7 +56,7 @@ export async function runToolTest(slug, fn, opts = {}) {
   };
   const started = Date.now();
   try {
-    await page.goto(`${BASE_URL}/tools/${slug}/`, { waitUntil: 'networkidle' });
+    await page.goto(`${BASE_URL}${pagePath}`, { waitUntil: 'networkidle' });
     await fn({ page, context, browser, shot, slug, BASE_URL });
 
     const storage = await page.evaluate(async () => {
