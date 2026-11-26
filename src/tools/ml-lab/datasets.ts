@@ -157,8 +157,8 @@ export function makeClassData(kind: ClassDataset, o: ClassOpts): LabeledPoint[] 
       for (let i = 0; i < n; i++) {
         const c = i % C;
         const s = rng();
-        const r = 0.06 + 0.84 * s;
-        const t = 1.6 * Math.PI * s * 1.5 + (2 * Math.PI * c) / C;
+        const r = 0.08 + 0.84 * s;
+        const t = 3.5 * Math.PI * s + (2 * Math.PI * c) / C; // 1.75 turns
         pts.push({ x: r * Math.cos(t) + gaussian(rng) * sd, y: r * Math.sin(t) + gaussian(rng) * sd, label: c });
       }
       break;

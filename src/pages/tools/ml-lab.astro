@@ -1,6 +1,588 @@
 ---
 import ToolLayout from '../../layouts/ToolLayout.astro';
+
+// Tiny inline icons (stroke = currentColor).
+const svg = (body: string, size = 16) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+const ico = {
+  play: '<svg class="ml-lab-ico-play" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></svg>' +
+    '<svg class="ml-lab-ico-pause" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" hidden><rect x="5" y="4" width="5" height="16" rx="1.2"/><rect x="14" y="4" width="5" height="16" rx="1.2"/></svg>',
+  step: svg('<path d="M5 5l9 7-9 7z" fill="currentColor"/><path d="M19 5v14"/>', 14),
+  reset: svg('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>', 14),
+  dice: svg('<rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>', 14),
+  brush: svg('<path d="M18.4 2.6a2 2 0 0 1 2.9 2.9L11 15.8 8.2 13z"/><path d="M7 14.5c-2 0-3.5 1.6-3.5 3.5 0 1.3-.7 2-1.5 2.5 3.8.7 7.5-.6 7.5-3.5"/>', 14),
+  eraser: svg('<path d="M20 20H8.5L3.6 15.1a2 2 0 0 1 0-2.8l9.5-9.5a2 2 0 0 1 2.8 0l4.5 4.5a2 2 0 0 1 0 2.8L12 18.6"/><path d="M6 11l7 7"/>', 14),
+  trash: svg('<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>', 14),
+  next: svg('<path d="M9 6l6 6-6 6"/>', 14),
+  minus: svg('<path d="M5 12h14"/>', 14),
+  plus: svg('<path d="M12 5v14M5 12h14"/>', 14),
+  bulb: svg('<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2h5c.1-.8.5-1.5 1.1-2A6 6 0 0 0 12 3z"/>', 18),
+};
+
+// Dataset glyphs (28x28): dots drawn in the current colour or the class colours.
+const dot = (x: number, y: number, c = 'currentColor', r = 1.6) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>`;
+const ring = (pts: [number, number][], c?: string) => pts.map(([x, y]) => dot(x, y, c)).join('');
+const glyph = (body: string) => `<svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">${body}</svg>`;
+const A = 'var(--ml-lab-class-a)', B = 'var(--ml-lab-class-b)';
+const circ = (cx: number, cy: number, r: number, n: number, off = 0) =>
+  Array.from({ length: n }, (_, i) => [cx + r * Math.cos(off + (i / n) * 2 * Math.PI), cy + r * Math.sin(off + (i / n) * 2 * Math.PI)] as [number, number]);
+const arc = (cx: number, cy: number, r: number, a0: number, a1: number, n: number) =>
+  Array.from({ length: n }, (_, i) => { const a = a0 + ((a1 - a0) * i) / (n - 1); return [cx + r * Math.cos(a), cy + r * Math.sin(a)] as [number, number]; });
+const spiral = (off: number) => Array.from({ length: 8 }, (_, i) => { const t = i / 7; const a = off + t * 2.6 * Math.PI; const r = 2 + t * 10; return [14 + r * Math.cos(a), 14 + r * Math.sin(a)] as [number, number]; });
+const g = {
+  blobs: glyph(ring([[7, 8], [9, 6], [9.5, 9.5], [6, 10.5], [19, 7], [21, 9], [18, 10], [12, 20], [14.5, 21], [13, 17.5], [16, 19]])),
+  aniso: glyph(ring([[4, 10], [7, 9], [10, 7.5], [13, 6], [8, 11], [14, 16], [17, 14.5], [20, 13], [23, 11.5], [18, 17], [11, 9.5]])),
+  moons: glyph(ring(arc(10, 15, 7, Math.PI, 2 * Math.PI, 7)) + ring(arc(18, 13, 7, 0, Math.PI, 7))),
+  rings: glyph(ring(circ(14, 14, 11, 14)) + ring(circ(14, 14, 4.5, 6, 0.4))),
+  uniform: glyph(ring([[5, 6], [12, 4], [21, 6], [8, 12], [16, 11], [23, 14], [4, 18], [12, 18], [19, 20], [7, 24], [15, 24], [23, 23]])),
+  nnblobs: glyph(ring([[7, 8], [9, 6], [10, 10], [6, 11], [8.5, 13]], A) + ring([[19, 16], [21, 19], [18, 20], [22, 15], [17, 22]], B)),
+  xor: glyph(ring([[6, 6], [9, 8], [7, 10], [19, 19], [22, 21], [20, 22]], A) + ring([[19, 6], [22, 8], [20, 10], [6, 19], [9, 21], [7, 22]], B)),
+  circles: glyph(ring(circ(14, 14, 11, 12), B) + ring(circ(14, 14, 4, 5, 0.3), A)),
+  spiral: glyph(ring(spiral(0), A) + ring(spiral(Math.PI), B)),
+  dice: '<svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="6" y="6" width="16" height="16" rx="3.5"/><circle cx="10.5" cy="10.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="14" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="17.5" cy="17.5" r="1.3" fill="currentColor" stroke="none"/></svg>',
+  nnmoons: glyph(ring(arc(10, 15, 7, Math.PI, 2 * Math.PI, 7), A) + ring(arc(18, 13, 7, 0, Math.PI, 7), B)),
+};
+
+const kmSets = [
+  ['blobs', 'Blobs', g.blobs], ['aniso', 'Stretched', g.aniso], ['moons', 'Moons', g.moons],
+  ['rings', 'Rings', g.rings], ['uniform', 'Uniform', g.uniform],
+];
+const nnSets = [
+  ['blobs', 'Blobs', g.nnblobs], ['xor', 'XOR', g.xor], ['circles', 'Circles', g.circles],
+  ['spiral', 'Spiral', g.spiral], ['moons', 'Moons', g.nnmoons],
+];
+const features = [['x', 'x'], ['y', 'y'], ['x2', 'x²'], ['y2', 'y²'], ['xy', 'xy'], ['sinx', 'sin πx'], ['siny', 'sin πy']];
 ---
 <ToolLayout slug="ml-lab">
-  <div class="card"><p class="muted">Coming soon.</p></div>
+  <div class="ml-lab" id="ml-lab-root">
+    <div class="tabs ml-lab-tabs" role="tablist" aria-label="ML Lab mode" data-tabs="mllab">
+      <button class="tab" role="tab" type="button" data-tab="kmeans" id="ml-lab-tab-kmeans" aria-controls="ml-lab-panel-kmeans" aria-selected="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="7" cy="8" r="2.5"/><circle cx="17" cy="7" r="2.5"/><circle cx="12" cy="17" r="2.5"/></svg>
+        Clustering <span class="ml-lab-tab-sub">k-means</span>
+      </button>
+      <button class="tab" role="tab" type="button" data-tab="nn" id="ml-lab-tab-nn" aria-controls="ml-lab-panel-nn" aria-selected="false">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="5" cy="7" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 7l3-1.5M7 7l3 4.5M7 17l3-4.5M7 17l3 1.5M14 5.5l3 5.5M14 12h3M14 18.5l3-5.5" stroke-width="1.2"/></svg>
+        Neural network <span class="ml-lab-tab-sub">MLP</span>
+      </button>
+    </div>
+
+    <!-- ============================== K-MEANS ============================== -->
+    <section class="ml-lab-panel" data-tabpanel="mllab:kmeans" id="ml-lab-panel-kmeans" role="tabpanel" aria-labelledby="ml-lab-tab-kmeans">
+      <div class="ml-lab-grid">
+        <aside class="card ml-lab-ctrl" aria-label="Clustering controls">
+          <div class="ml-lab-sec">
+            <h2 class="ml-lab-h">Data</h2>
+            <div class="ml-lab-ds" role="group" aria-label="Dataset">
+              {kmSets.map(([key, label, gl]) => (
+                <button type="button" class="ml-lab-ds-btn" data-km-ds={key} aria-pressed="false"><Fragment set:html={gl} /><span>{label}</span></button>
+              ))}
+              <button type="button" class="ml-lab-ds-btn ml-lab-ds-new" id="km-generate" title="Draw a new random sample of the current dataset"><Fragment set:html={g.dice} /><span>Resample</span></button>
+            </div>
+            <div class="ml-lab-field">
+              <div class="ml-lab-lbl"><label for="km-n">Points</label><output id="km-n-out" for="km-n"></output></div>
+              <input type="range" id="km-n" min="30" max="1200" step="10" value="360" />
+            </div>
+            <div class="ml-lab-field">
+              <div class="ml-lab-lbl"><label for="km-noise">Spread / noise</label><output id="km-noise-out" for="km-noise"></output></div>
+              <input type="range" id="km-noise" min="0" max="100" step="1" value="30" />
+            </div>
+            <div class="ml-lab-field" id="km-centers-field">
+              <div class="ml-lab-lbl"><label for="km-centers">True clusters</label><output id="km-centers-out" for="km-centers"></output></div>
+              <input type="range" id="km-centers" min="1" max="8" step="1" value="4" />
+            </div>
+          </div>
+
+          <div class="ml-lab-sec">
+            <h2 class="ml-lab-h">Paint</h2>
+            <div class="ml-lab-row2">
+              <div class="btn-group" role="group" aria-label="Canvas tool">
+                <button type="button" class="btn btn-sm" id="km-tool-paint" aria-pressed="true"><Fragment set:html={ico.brush} />Paint</button>
+                <button type="button" class="btn btn-sm" id="km-tool-erase" aria-pressed="false"><Fragment set:html={ico.eraser} />Erase</button>
+              </div>
+              <button type="button" class="btn btn-sm btn-ghost" id="km-clear" title="Remove every point"><Fragment set:html={ico.trash} />Clear</button>
+            </div>
+            <div class="ml-lab-field">
+              <div class="ml-lab-lbl"><label for="km-brush">Brush size</label><output id="km-brush-out" for="km-brush"></output></div>
+              <input type="range" id="km-brush" min="0" max="100" step="1" value="30" />
+            </div>
+          </div>
+
+          <div class="ml-lab-sec">
+            <h2 class="ml-lab-h">Algorithm</h2>
+            <div class="ml-lab-field">
+              <div class="ml-lab-lbl"><label for="km-k">Clusters to find (k)</label><output id="km-k-out" for="km-k" class="ml-lab-big"></output></div>
+              <input type="range" id="km-k" min="1" max="10" step="1" value="4" />
+            </div>
+            <div class="ml-lab-field">
+              <span class="ml-lab-lbl" id="km-init-lbl">Initialization</span>
+              <div class="btn-group ml-lab-seg" role="group" aria-labelledby="km-init-lbl">
+                <button type="button" class="btn btn-sm" id="km-init-random" aria-pressed="false">Random</button>
+                <button type="button" class="btn btn-sm" id="km-init-pp" aria-pressed="true">k-means++</button>
+              </div>
+            </div>
+            <div class="ml-lab-pair">
+              <div class="ml-lab-field">
+                <label class="ml-lab-lbl" for="km-seed">Init seed</label>
+                <div class="ml-lab-inline">
+                  <input type="text" inputmode="numeric" class="input ml-lab-num" id="km-seed" value="7" maxlength="9" autocomplete="off" />
+                  <button type="button" class="btn btn-sm btn-icon" id="km-seed-rand" title="Random seed" aria-label="Random seed"><Fragment set:html={ico.dice} /></button>
+                </div>
+              </div>
+              <div class="ml-lab-field">
+                <label class="ml-lab-lbl" for="km-speed">Speed</label>
+                <select class="select ml-lab-select" id="km-speed">
+                  <option value="slow">Slow</option>
+                  <option value="normal" selected>Normal</option>
+                  <option value="fast">Fast</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div class="card ml-lab-stage">
+          <div class="ml-lab-transport">
+            <ol class="ml-lab-phases" id="km-phases" aria-label="Lloyd's algorithm phases">
+              <li data-phase="init"><span>1</span>Init</li>
+              <li data-phase="assign"><span>2</span>Assign</li>
+              <li data-phase="update"><span>3</span>Update</li>
+            </ol>
+            <div class="ml-lab-buttons">
+              <button type="button" class="btn btn-sm" id="km-reset" title="Reset run (R)"><Fragment set:html={ico.reset} /><span class="ml-lab-hide-xs">Reset</span></button>
+              <button type="button" class="btn btn-sm" id="km-step" title="Next phase (N)"><Fragment set:html={ico.step} /><span id="km-step-label">Step</span></button>
+              <button type="button" class="btn btn-sm btn-primary ml-lab-play" id="km-play" aria-pressed="false" title="Play / pause (Space)"><Fragment set:html={ico.play} /><span class="ml-lab-play-text">Play</span></button>
+            </div>
+          </div>
+          <div class="ml-lab-canvas-wrap" id="km-wrap">
+            <canvas id="km-canvas" class="ml-lab-canvas" data-tool="paint" role="img" aria-label="Clustering canvas. Drag to paint points."></canvas>
+            <div class="ml-lab-empty" id="km-empty" hidden>
+              <strong>The canvas is empty</strong>
+              <span>Drag to paint points, or pick a dataset on the left.</span>
+            </div>
+          </div>
+          <div class="ml-lab-stage-foot small">
+            <span class="mono" id="km-count">0 points</span>
+            <span class="faint ml-lab-hide-xs">Drag to paint · <kbd>Space</kbd> play · <kbd>N</kbd> step · <kbd>R</kbd> reset</span>
+          </div>
+        </div>
+
+        <div class="ml-lab-side">
+          <div class="card ml-lab-stats">
+            <div class="ml-lab-tiles">
+              <div class="ml-lab-tile"><span class="ml-lab-tile-k">Iteration</span><span class="ml-lab-tile-v mono" id="km-iter">0</span></div>
+              <div class="ml-lab-tile"><span class="ml-lab-tile-k" title="Within-cluster sum of squared distances">Inertia (WCSS)</span><span class="ml-lab-tile-v mono" id="km-inertia">–</span></div>
+            </div>
+            <canvas class="ml-lab-spark" id="km-spark" aria-hidden="true"></canvas>
+            <p class="ml-lab-status small" id="km-status" aria-live="polite"></p>
+          </div>
+
+          <div class="card ml-lab-elbow">
+            <div class="ml-lab-card-head">
+              <h2 class="ml-lab-h">Elbow &amp; silhouette</h2>
+              <button type="button" class="btn btn-sm" id="km-use-best" disabled>Use suggested k</button>
+            </div>
+            <canvas class="ml-lab-elbow-canvas" id="km-elbow" role="img" aria-label="Elbow chart"></canvas>
+            <div class="ml-lab-legend small">
+              <span><i class="ml-lab-key-line"></i>Inertia (best of 4 runs)</span>
+              <span><i class="ml-lab-key-bar"></i>Silhouette</span>
+            </div>
+            <p class="small muted ml-lab-note" id="km-elbow-note"></p>
+          </div>
+
+          <div class="card ml-lab-tip" aria-live="polite">
+            <div class="ml-lab-tip-head"><Fragment set:html={ico.bulb} /><strong id="km-tip-title"></strong></div>
+            <p class="small" id="km-tip-text"></p>
+            <div class="ml-lab-row2">
+              <button type="button" class="btn btn-sm btn-primary" id="km-tip-try"></button>
+              <button type="button" class="btn btn-sm btn-ghost" id="km-tip-next">Next idea <Fragment set:html={ico.next} /></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== NEURAL NET ============================== -->
+    <section class="ml-lab-panel" data-tabpanel="mllab:nn" id="ml-lab-panel-nn" role="tabpanel" aria-labelledby="ml-lab-tab-nn" hidden>
+      <div class="ml-lab-lessons">
+        <div class="ml-lab-presets" id="nn-presets" role="group" aria-label="Lessons"></div>
+        <div class="ml-lab-lesson" id="nn-lesson" aria-live="polite">
+          <div class="ml-lab-tip-head"><Fragment set:html={ico.bulb} /><strong id="nn-lesson-title"></strong></div>
+          <p class="small" id="nn-lesson-text"></p>
+          <button type="button" class="btn btn-sm btn-primary" id="nn-lesson-fix" hidden></button>
+        </div>
+      </div>
+
+      <div class="ml-lab-grid ml-lab-grid-nn">
+        <aside class="card ml-lab-ctrl" aria-label="Neural network controls">
+          <div class="ml-lab-sec">
+            <h2 class="ml-lab-h">Data</h2>
+            <div class="ml-lab-ds" role="group" aria-label="Dataset">
+              {nnSets.map(([key, label, gl]) => (
+                <button type="button" class="ml-lab-ds-btn" data-nn-ds={key} aria-pressed="false"><Fragment set:html={gl} /><span>{label}</span></button>
+              ))}
+              <button type="button" class="ml-lab-ds-btn ml-lab-ds-new" id="nn-regen" title="Draw a new random sample of the current dataset"><Fragment set:html={g.dice} /><span>Resample</span></button>
+            </div>
+            <div class="ml-lab-field">
+              <span class="ml-lab-lbl" id="nn-cls-lbl">Classes</span>
+              <div class="btn-group ml-lab-seg" role="group" aria-labelledby="nn-cls-lbl">
+                <button type="button" class="btn btn-sm" id="nn-cls-2" aria-pressed="true">2 classes</button>
+                <button type="button" class="btn btn-sm" id="nn-cls-3" aria-pressed="false">3 classes</button>
+              </div>
+            </div>
+            <div class="ml-lab-field">
+              <div class="ml-lab-lbl"><label for="nn-n">Points</label><output id="nn-n-out" for="nn-n"></output></div>
+              <input type="range" id="nn-n" min="20" max="600" step="10" value="300" />
+            </div>
+            <div class="ml-lab-field">
+              <div class="ml-lab-lbl"><label for="nn-noise">Noise</label><output id="nn-noise-out" for="nn-noise"></output></div>
+              <input type="range" id="nn-noise" min="0" max="100" step="1" value="10" />
+            </div>
+            <div class="ml-lab-field">
+              <div class="ml-lab-lbl"><label for="nn-split">Held-out test set</label><output id="nn-split-out" for="nn-split"></output></div>
+              <input type="range" id="nn-split" min="0" max="80" step="5" value="30" />
+            </div>
+          </div>
+
+          <div class="ml-lab-sec">
+            <h2 class="ml-lab-h">Input features</h2>
+            <div class="ml-lab-feats" role="group" aria-label="Input features">
+              {features.map(([key, label]) => (
+                <label class="ml-lab-chip"><input type="checkbox" data-nn-feat={key} /><span>{label}</span></label>
+              ))}
+            </div>
+          </div>
+
+          <div class="ml-lab-sec">
+            <h2 class="ml-lab-h">Architecture</h2>
+            <div class="ml-lab-stepper-row">
+              <span class="ml-lab-lbl" id="nn-layers-lbl">Hidden layers</span>
+              <div class="ml-lab-stepper" role="group" aria-labelledby="nn-layers-lbl">
+                <button type="button" class="btn btn-sm btn-icon" id="nn-layers-minus" aria-label="Remove a hidden layer"><Fragment set:html={ico.minus} /></button>
+                <output id="nn-layers-out" class="mono" aria-live="polite">2</output>
+                <button type="button" class="btn btn-sm btn-icon" id="nn-layers-plus" aria-label="Add a hidden layer"><Fragment set:html={ico.plus} /></button>
+              </div>
+            </div>
+            <div class="ml-lab-layer-list" id="nn-layer-list"></div>
+            <div class="ml-lab-field">
+              <div class="ml-lab-lbl"><label for="nn-act">Activation</label><span class="badge" id="nn-init" title="Weight initialization chosen for this activation">He init</span></div>
+              <select class="select ml-lab-select" id="nn-act">
+                <option value="relu">ReLU</option>
+                <option value="tanh" selected>tanh</option>
+                <option value="sigmoid">Sigmoid</option>
+                <option value="gelu">GELU</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="ml-lab-sec">
+            <h2 class="ml-lab-h">Training</h2>
+            <div class="ml-lab-pair">
+              <div class="ml-lab-field">
+                <label class="ml-lab-lbl" for="nn-opt">Optimizer</label>
+                <select class="select ml-lab-select" id="nn-opt">
+                  <option value="sgd">SGD</option>
+                  <option value="momentum">Momentum</option>
+                  <option value="adam" selected>Adam</option>
+                </select>
+              </div>
+              <div class="ml-lab-field">
+                <label class="ml-lab-lbl" for="nn-lr">Learning rate</label>
+                <select class="select ml-lab-select" id="nn-lr">
+                  {['0.0001', '0.001', '0.003', '0.01', '0.03', '0.1', '0.3', '1', '3', '10'].map((v) => <option value={v} selected={v === '0.01'}>{v}</option>)}
+                </select>
+              </div>
+              <div class="ml-lab-field">
+                <label class="ml-lab-lbl" for="nn-batch">Batch size</label>
+                <select class="select ml-lab-select" id="nn-batch">
+                  {[['1', '1'], ['4', '4'], ['10', '10'], ['16', '16'], ['32', '32'], ['0', 'Full batch']].map(([v, l]) => <option value={v} selected={v === '16'}>{l}</option>)}
+                </select>
+              </div>
+              <div class="ml-lab-field">
+                <label class="ml-lab-lbl" for="nn-l2">L2 penalty</label>
+                <select class="select ml-lab-select" id="nn-l2">
+                  {['0', '0.0001', '0.001', '0.003', '0.01', '0.03', '0.1'].map((v) => <option value={v} selected={v === '0'}>{v === '0' ? 'None' : v}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div class="card ml-lab-stage">
+          <div class="ml-lab-transport">
+            <div class="ml-lab-epoch">
+              <span class="ml-lab-tile-k">Epoch</span>
+              <span class="mono" id="nn-epoch">0</span>
+            </div>
+            <div class="ml-lab-buttons">
+              <select class="select ml-lab-select ml-lab-speed" id="nn-speed" aria-label="Training speed">
+                <option value="slow">Slow</option>
+                <option value="normal" selected>Normal</option>
+                <option value="fast">Fast</option>
+              </select>
+              <button type="button" class="btn btn-sm" id="nn-reset" title="Re-initialize the weights"><Fragment set:html={ico.reset} /><span class="ml-lab-hide-xs">Reset</span></button>
+              <button type="button" class="btn btn-sm" id="nn-step" title="Train one epoch"><Fragment set:html={ico.step} />Step</button>
+              <button type="button" class="btn btn-sm btn-primary ml-lab-play" id="nn-play" aria-pressed="false"><Fragment set:html={ico.play} /><span class="ml-lab-play-text">Play</span></button>
+            </div>
+          </div>
+          <div class="ml-lab-canvas-wrap" id="nn-wrap">
+            <canvas id="nn-canvas" class="ml-lab-canvas" role="img" aria-label="Decision boundary. Click to add points of the selected class."></canvas>
+            <div class="ml-lab-empty" id="nn-empty" hidden>
+              <strong>No training points</strong>
+              <span>Click to add points of the selected class, or pick a dataset.</span>
+            </div>
+          </div>
+          <div class="ml-lab-addbar">
+            <span class="small muted ml-lab-hide-xs">Click to add</span>
+            <div class="btn-group" role="group" aria-label="Point tool" id="nn-tools">
+              <button type="button" class="btn btn-sm ml-lab-classbtn" data-nn-tool="0" aria-pressed="true"><i class="ml-lab-sw" data-c="0"></i><span>Class A</span></button>
+              <button type="button" class="btn btn-sm ml-lab-classbtn" data-nn-tool="1" aria-pressed="false"><i class="ml-lab-sw" data-c="1"></i><span>Class B</span></button>
+              <button type="button" class="btn btn-sm ml-lab-classbtn" data-nn-tool="2" aria-pressed="false" hidden><i class="ml-lab-sw" data-c="2"></i><span>Class C</span></button>
+              <button type="button" class="btn btn-sm" data-nn-tool="erase" aria-pressed="false" title="Erase points" aria-label="Erase points"><Fragment set:html={ico.eraser} /></button>
+            </div>
+            <button type="button" class="btn btn-sm btn-ghost" id="nn-clear" title="Remove every point"><Fragment set:html={ico.trash} /><span class="ml-lab-hide-xs">Clear</span></button>
+            <span class="ml-lab-pointkey small faint"><i class="ml-lab-pt"></i>train <i class="ml-lab-pt ml-lab-pt-test"></i>test</span>
+          </div>
+        </div>
+
+        <div class="ml-lab-side">
+          <div class="card ml-lab-stats">
+            <div class="ml-lab-tiles ml-lab-tiles-4">
+              <div class="ml-lab-tile"><span class="ml-lab-tile-k">Train loss</span><span class="ml-lab-tile-v mono" id="nn-train-loss">–</span></div>
+              <div class="ml-lab-tile"><span class="ml-lab-tile-k">Test loss</span><span class="ml-lab-tile-v mono" id="nn-test-loss">–</span></div>
+              <div class="ml-lab-tile"><span class="ml-lab-tile-k">Train acc</span><span class="ml-lab-tile-v mono" id="nn-train-acc">–</span></div>
+              <div class="ml-lab-tile"><span class="ml-lab-tile-k">Test acc</span><span class="ml-lab-tile-v mono" id="nn-test-acc">–</span></div>
+            </div>
+            <div class="ml-lab-chart-head small"><span>Loss</span><span class="ml-lab-legend"><span><i class="ml-lab-key-line"></i>train</span><span><i class="ml-lab-key-line ml-lab-key-dash"></i>test</span></span></div>
+            <canvas class="ml-lab-chart" id="nn-loss-chart" role="img" aria-label="Loss curves"></canvas>
+            <div class="ml-lab-chart-head small"><span>Accuracy</span></div>
+            <canvas class="ml-lab-chart" id="nn-acc-chart" role="img" aria-label="Accuracy curves"></canvas>
+            <div class="alert alert-error small" id="nn-alert" role="alert" hidden></div>
+          </div>
+        </div>
+
+        <div class="card ml-lab-net">
+          <div class="ml-lab-card-head">
+            <h2 class="ml-lab-h">Network <span class="faint small mono" id="nn-params"></span></h2>
+            <span class="ml-lab-legend small">
+              <span><i class="ml-lab-key-w" data-s="pos"></i>positive weight</span>
+              <span><i class="ml-lab-key-w" data-s="neg"></i>negative weight</span>
+              <span class="faint ml-lab-hide-xs">Hover or tap a hidden neuron to see what it detects</span>
+            </span>
+          </div>
+          <div class="ml-lab-net-wrap" id="nn-net"></div>
+          <div class="ml-lab-pop" id="nn-pop" hidden>
+            <canvas id="nn-pop-canvas" width="134" height="134" aria-hidden="true"></canvas>
+            <div class="ml-lab-pop-text small"><strong id="nn-pop-title"></strong><span class="faint" id="nn-pop-sub"></span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
 </ToolLayout>
+
+<script>
+  import { init } from '../../tools/ml-lab/main';
+  init();
+</script>
+
+<style is:global>
+  :root {
+    --ml-lab-class-a: #e8590c; --ml-lab-class-b: #1c7ed6; --ml-lab-class-c: #7048e8;
+    --ml-lab-pos: #2b8a3e; --ml-lab-neg: #c2255c;
+    --ml-lab-k9: #65a30d; --ml-lab-k10: #475569;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --ml-lab-class-a: #ff922b; --ml-lab-class-b: #4dabf7; --ml-lab-class-c: #b197fc;
+      --ml-lab-pos: #69db7c; --ml-lab-neg: #f06595;
+      --ml-lab-k9: #a3e635; --ml-lab-k10: #94a3b8;
+    }
+  }
+  :root[data-theme='dark'] {
+    --ml-lab-class-a: #ff922b; --ml-lab-class-b: #4dabf7; --ml-lab-class-c: #b197fc;
+    --ml-lab-pos: #69db7c; --ml-lab-neg: #f06595;
+    --ml-lab-k9: #a3e635; --ml-lab-k10: #94a3b8;
+  }
+
+  .ml-lab .ml-lab-tabs { margin-bottom: 16px; }
+  .ml-lab .tab { display: inline-flex; align-items: center; gap: 7px; }
+  .ml-lab .ml-lab-tab-sub { font-size: 0.72rem; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: var(--bg-sunken); color: var(--text-faint); border: 1px solid var(--border); }
+  .ml-lab .tab[aria-selected='true'] .ml-lab-tab-sub { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+
+  /* ----- layout ----- */
+  .ml-lab .ml-lab-grid {
+    display: grid; gap: 16px; align-items: start;
+    grid-template-columns: 268px minmax(0, 1fr) 330px;
+    grid-template-areas: 'ctrl stage side';
+  }
+  .ml-lab .ml-lab-grid-nn { grid-template-areas: 'ctrl stage side' 'ctrl net net'; }
+  .ml-lab .ml-lab-grid > * { min-width: 0; }
+  .ml-lab .ml-lab-ctrl { grid-area: ctrl; padding: 4px 16px; }
+  .ml-lab .ml-lab-stage { grid-area: stage; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .ml-lab .ml-lab-side { grid-area: side; display: flex; flex-direction: column; gap: 16px; }
+  .ml-lab .ml-lab-net { grid-area: net; }
+  @media (max-width: 1180px) {
+    .ml-lab .ml-lab-grid { grid-template-columns: 260px minmax(0, 1fr); grid-template-areas: 'ctrl stage' 'ctrl side'; }
+    .ml-lab .ml-lab-grid-nn { grid-template-areas: 'ctrl stage' 'ctrl side' 'net net'; }
+  }
+  @media (max-width: 760px) {
+    .ml-lab .ml-lab-grid, .ml-lab .ml-lab-grid-nn { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'stage' 'ctrl' 'side'; }
+    .ml-lab .ml-lab-grid-nn { grid-template-areas: 'stage' 'side' 'net' 'ctrl'; }
+    .ml-lab .ml-lab-hide-xs { display: none; }
+    .ml-lab .ml-lab-net-wrap { overflow-x: auto; }
+    .ml-lab .ml-lab-net-wrap svg { min-width: 540px; }
+  }
+
+  /* ----- control column ----- */
+  .ml-lab .ml-lab-sec { padding: 14px 0; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
+  .ml-lab .ml-lab-sec:last-child { border-bottom: 0; }
+  .ml-lab .ml-lab-h { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin: 0; font-weight: 650; display: flex; align-items: baseline; gap: 8px; }
+  .ml-lab .ml-lab-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .ml-lab .ml-lab-field.is-disabled { opacity: 0.45; }
+  .ml-lab .ml-lab-lbl { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.82rem; font-weight: 550; color: var(--text); margin: 0; }
+  .ml-lab .ml-lab-lbl output { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .ml-lab .ml-lab-lbl output.ml-lab-big { font-size: 1rem; font-weight: 650; color: var(--accent); }
+  .ml-lab input[type='range'] { margin: 0; height: 22px; }
+  .ml-lab .ml-lab-full { width: 100%; }
+  .ml-lab .ml-lab-row2 { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .ml-lab .ml-lab-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ml-lab .ml-lab-inline { display: flex; gap: 6px; }
+  .ml-lab .ml-lab-inline .btn-icon { flex: 0 0 30px; width: 30px; height: 28px; }
+  .ml-lab .ml-lab-inline .ml-lab-num { flex: 1 1 auto; min-width: 0; width: auto; height: 28px; font-family: var(--font-mono); font-size: 0.82rem; padding: 4px 8px; }
+  .ml-lab .ml-lab-select { height: 30px; font-size: 0.84rem; padding: 4px 24px 4px 8px; }
+  .ml-lab .ml-lab-seg { display: flex; width: 100%; }
+  .ml-lab .ml-lab-seg > .btn { flex: 1 1 0; }
+
+  .ml-lab .ml-lab-ds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .ml-lab .ml-lab-ds-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px 5px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-elev);
+    color: var(--text-muted); font: inherit; font-size: 0.74rem; font-weight: 600; cursor: pointer;
+    transition: border-color 0.12s, background 0.12s, color 0.12s;
+  }
+  .ml-lab .ml-lab-ds-btn svg { color: var(--text-faint); }
+  .ml-lab .ml-lab-ds-btn:hover { background: var(--bg-hover); color: var(--text); }
+  .ml-lab .ml-lab-ds-btn[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .ml-lab .ml-lab-ds-btn[aria-pressed='true'] svg { color: var(--accent); }
+  .ml-lab .ml-lab-ds-new { border-style: dashed; }
+  .ml-lab .ml-lab-ds-btn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+  .ml-lab .ml-lab-feats { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ml-lab .ml-lab-chip { position: relative; cursor: pointer; }
+  .ml-lab .ml-lab-chip input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .ml-lab .ml-lab-chip span {
+    display: inline-block; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border-strong);
+    font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted); background: var(--bg-elev);
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .ml-lab .ml-lab-chip input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .ml-lab .ml-lab-chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .ml-lab .ml-lab-stepper-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .ml-lab .ml-lab-stepper { display: inline-flex; align-items: center; gap: 4px; }
+  .ml-lab .ml-lab-stepper .btn-icon { width: 28px; }
+  .ml-lab .ml-lab-stepper output { min-width: 26px; text-align: center; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .ml-lab .ml-lab-layer-list { display: flex; flex-direction: column; gap: 6px; }
+  .ml-lab .ml-lab-layer-list:empty { display: none; }
+  .ml-lab .ml-lab-layer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 4px 4px 10px; background: var(--bg-sunken); border-radius: var(--radius-sm); font-size: 0.8rem; color: var(--text-muted); }
+  .ml-lab .ml-lab-layer .ml-lab-stepper .btn-icon { width: 24px; height: 24px; }
+
+  /* ----- stage ----- */
+  .ml-lab .ml-lab-transport { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .ml-lab .ml-lab-buttons { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+  .ml-lab .ml-lab-play { min-width: 82px; }
+  .ml-lab .ml-lab-speed { width: auto; height: 28px; }
+  .ml-lab .ml-lab-phases { display: flex; align-items: center; gap: 4px; list-style: none; margin: 0; padding: 0; font-size: 0.8rem; font-weight: 600; color: var(--text-faint); }
+  .ml-lab .ml-lab-phases li { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px 3px 4px; border-radius: 999px; border: 1px solid transparent; transition: background 0.2s, color 0.2s, border-color 0.2s; }
+  .ml-lab .ml-lab-phases li span { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--bg-sunken); font-size: 0.7rem; }
+  .ml-lab .ml-lab-phases li.is-next { border-color: var(--border-strong); border-style: dashed; color: var(--text-muted); }
+  .ml-lab .ml-lab-phases li.is-on { background: var(--accent-soft); color: var(--accent); }
+  .ml-lab .ml-lab-phases li.is-on span { background: var(--accent); color: var(--accent-text); }
+  .ml-lab .ml-lab-epoch { display: flex; align-items: baseline; gap: 8px; }
+  .ml-lab .ml-lab-epoch .mono { font-size: 1.35rem; font-weight: 650; font-variant-numeric: tabular-nums; min-width: 4ch; }
+
+  .ml-lab .ml-lab-canvas-wrap { position: relative; width: 100%; max-width: 640px; margin: 0 auto; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: var(--bg-elev); }
+  .ml-lab .ml-lab-canvas { display: block; width: 100%; height: auto; aspect-ratio: 1; touch-action: none; cursor: crosshair; }
+  .ml-lab .ml-lab-canvas[data-tool='erase'] { cursor: cell; }
+  .ml-lab .ml-lab-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; padding: 24px; pointer-events: none; color: var(--text-muted); font-size: 0.9rem; }
+  .ml-lab .ml-lab-empty strong { color: var(--text); font-size: 1rem; }
+  .ml-lab .ml-lab-stage-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; color: var(--text-muted); }
+  .ml-lab .ml-lab-addbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ml-lab .ml-lab-classbtn { gap: 6px; }
+  .ml-lab .ml-lab-sw { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: var(--ml-lab-class-a); }
+  .ml-lab .ml-lab-sw[data-c='1'] { background: var(--ml-lab-class-b); }
+  .ml-lab .ml-lab-sw[data-c='2'] { background: var(--ml-lab-class-c); }
+  .ml-lab .ml-lab-pointkey { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; }
+  .ml-lab .ml-lab-pt { width: 9px; height: 9px; border-radius: 50%; background: var(--text-muted); display: inline-block; }
+  .ml-lab .ml-lab-pt-test { background: transparent; border: 2px solid var(--text-muted); margin-left: 6px; }
+
+  /* ----- side ----- */
+  .ml-lab .ml-lab-stats { padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .ml-lab .ml-lab-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ml-lab .ml-lab-tile { background: var(--bg-sunken); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .ml-lab .ml-lab-tile-k { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); font-weight: 650; white-space: nowrap; }
+  .ml-lab .ml-lab-tile-v { font-size: 1.2rem; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ml-lab .ml-lab-spark { width: 100%; height: 38px; display: block; }
+  .ml-lab .ml-lab-status { margin: 0; color: var(--text-muted); min-height: 3em; }
+  .ml-lab .ml-lab-status[data-tone='ok'] { color: var(--success); }
+  .ml-lab .ml-lab-status[data-tone='warn'] { color: var(--warning); }
+  .ml-lab .ml-lab-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .ml-lab .ml-lab-elbow { padding: 14px; }
+  .ml-lab .ml-lab-elbow-canvas { width: 100%; height: 170px; display: block; }
+  .ml-lab .ml-lab-legend { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--text-muted); }
+  .ml-lab .ml-lab-legend > span { display: inline-flex; align-items: center; gap: 5px; }
+  .ml-lab .ml-lab-key-line { width: 16px; height: 0; border-top: 2px solid var(--text); display: inline-block; }
+  .ml-lab .ml-lab-key-dash { border-top-style: dashed; }
+  .ml-lab .ml-lab-key-bar { width: 8px; height: 11px; background: var(--border-strong); display: inline-block; border-radius: 1px; }
+  .ml-lab .ml-lab-key-w { width: 18px; height: 3px; border-radius: 2px; display: inline-block; background: var(--ml-lab-pos); }
+  .ml-lab .ml-lab-key-w[data-s='neg'] { background: var(--ml-lab-neg); }
+  .ml-lab .ml-lab-note { margin: 8px 0 0; }
+  .ml-lab .ml-lab-tip { padding: 14px; background: linear-gradient(160deg, var(--accent-soft), var(--bg-elev) 70%); }
+  .ml-lab .ml-lab-tip p { margin: 6px 0 10px; color: var(--text-muted); }
+  .ml-lab .ml-lab-tip-head { display: flex; align-items: center; gap: 8px; color: var(--accent); }
+  .ml-lab .ml-lab-tip-head strong { color: var(--text); }
+  .ml-lab .ml-lab-chart-head .ml-lab-key-line { border-color: var(--accent); }
+  .ml-lab .ml-lab-chart-head .ml-lab-key-dash { border-color: var(--text-muted); }
+  .ml-lab .ml-lab-chart-head { display: flex; justify-content: space-between; align-items: center; color: var(--text-muted); font-weight: 600; margin-top: 4px; }
+  .ml-lab .ml-lab-chart { width: 100%; height: 110px; display: block; }
+  .ml-lab .ml-lab-tiles-4 { grid-template-columns: 1fr 1fr; }
+
+  /* ----- lessons ----- */
+  .ml-lab .ml-lab-lessons { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-bottom: 16px; align-items: stretch; }
+  .ml-lab .ml-lab-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .ml-lab .ml-lab-preset {
+    text-align: left; border: 1px solid var(--border); background: var(--bg-elev); color: var(--text);
+    border-radius: var(--radius); padding: 8px 10px; font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 2px;
+    transition: border-color 0.12s, background 0.12s, transform 0.12s;
+  }
+  .ml-lab .ml-lab-preset:hover { border-color: var(--border-strong); background: var(--bg-hover); }
+  .ml-lab .ml-lab-preset[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); }
+  .ml-lab .ml-lab-preset b { font-size: 0.84rem; font-weight: 650; line-height: 1.3; }
+  .ml-lab .ml-lab-preset small { font-size: 0.72rem; color: var(--text-faint); line-height: 1.3; }
+  .ml-lab .ml-lab-lesson { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px 14px; background: linear-gradient(160deg, var(--accent-soft), var(--bg-elev) 75%); }
+  .ml-lab .ml-lab-lesson p { margin: 6px 0 8px; color: var(--text-muted); }
+  @media (max-width: 1000px) {
+    .ml-lab .ml-lab-lessons { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 560px) {
+    .ml-lab .ml-lab-presets { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px; }
+    .ml-lab .ml-lab-preset { flex: 0 0 62%; scroll-snap-align: start; }
+  }
+
+  /* ----- network diagram ----- */
+  .ml-lab .ml-lab-net { padding: 14px; position: relative; }
+  .ml-lab .ml-lab-net .ml-lab-h { flex-wrap: wrap; }
+  .ml-lab .ml-lab-net-wrap { position: relative; width: 100%; overflow: hidden; }
+  .ml-lab .ml-lab-net-wrap svg { display: block; width: 100%; height: auto; }
+  .ml-lab .ml-lab-net-wrap .mll-node { cursor: default; }
+  .ml-lab .ml-lab-net-wrap .mll-node.is-hidden { cursor: pointer; }
+  .ml-lab .ml-lab-net-wrap .mll-node.is-hidden:hover circle, .ml-lab .ml-lab-net-wrap .mll-node.is-active circle { stroke: var(--accent); stroke-width: 2.5; }
+  .ml-lab .ml-lab-net-wrap.is-focus .mll-edge { opacity: 0.12; }
+  .ml-lab .ml-lab-net-wrap.is-focus .mll-edge.is-lit { opacity: 1; }
+  .ml-lab .ml-lab-pop {
+    position: absolute; z-index: 5; pointer-events: none; display: flex; flex-direction: column; gap: 6px; padding: 8px;
+    background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: var(--radius); box-shadow: var(--shadow-lg); width: 152px;
+  }
+  .ml-lab .ml-lab-pop canvas { width: 134px; height: 134px; border-radius: var(--radius-sm); display: block; }
+  .ml-lab .ml-lab-pop-text { display: flex; flex-direction: column; line-height: 1.3; }
+</style>

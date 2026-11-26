@@ -91,6 +91,7 @@ export const tools: Tool[] = [
   },
   {
     slug: 'ml-lab',
+    ready: true,
     name: 'ML Lab',
     tagline: 'Place points, then watch k-means cluster them and a small neural network learn a decision boundary live.',
     category: 'AI & ML',
