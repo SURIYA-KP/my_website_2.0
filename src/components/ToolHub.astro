@@ -13,69 +13,97 @@ import { url } from '../lib/paths';
       <input class="input" id="tool-search" type="search" placeholder="Search tools… (try “pdf”, “json”, “flowchart”)" aria-label="Search tools" autocomplete="off" />
     </div>
   </section>
-  {categories.map((cat) => {
-    const list = tools.filter((t) => t.category === cat);
-    if (!list.length) return null;
+  {(() => {
+    const used = categories.filter((c) => tools.some((t) => t.category === c));
     return (
-      <section class="hub-section" data-category={cat}>
-        <h2 class="hub-cat">{cat}</h2>
-        <div class="hub-grid">
-          {list.map((t, i) => (
-            <a class="tool-card" href={url(`tools/${t.slug}/`)} data-search={`${t.name} ${t.tagline} ${t.keywords.join(' ')}`.toLowerCase()}>
-              <span class="tool-glyph" style={`--hue: var(--c${(categories.indexOf(cat) % 8) + 1})`}>{t.glyph}</span>
-              <span class="tool-card-text">
-                <span class="tool-card-name">{t.name}</span>
-                <span class="tool-card-desc">{t.tagline}</span>
-              </span>
-            </a>
-          ))}
-        </div>
-      </section>
+      <nav class="hub-filters" aria-label="Filter by category">
+        <button type="button" class="hub-chip" data-cat="" aria-pressed="true">All <span class="hub-count">{tools.length}</span></button>
+        {used.map((c) => (
+          <button type="button" class="hub-chip" data-cat={c} aria-pressed="false" style={`--hue: var(--c${(categories.indexOf(c) % 8) + 1})`}>
+            {c} <span class="hub-count">{tools.filter((t) => t.category === c).length}</span>
+          </button>
+        ))}
+      </nav>
     );
-  })}
+  })()}
+  <div class="hub-grid">
+    {categories.flatMap((cat) => tools.filter((t) => t.category === cat)).map((t) => {
+      const hue = `--hue: var(--c${(categories.indexOf(t.category) % 8) + 1})`;
+      return (
+        <a class="tool-card" href={url(`tools/${t.slug}/`)} data-cat={t.category} data-search={`${t.name} ${t.tagline} ${t.category} ${t.keywords.join(' ')}`.toLowerCase()} style={hue}>
+          <span class="tool-card-top">
+            <span class="tool-glyph" aria-hidden="true">{t.glyph}</span>
+            <span class="tool-cat">{t.category}</span>
+          </span>
+          <span class="tool-card-name">{t.name}</span>
+          <span class="tool-card-desc">{t.tagline}</span>
+          <span class="tool-card-go" aria-hidden="true">Open →</span>
+        </a>
+      );
+    })}
+  </div>
   <p class="muted" id="no-results" hidden>No tools match your search.</p>
 </main>
 <script>
   const input = document.getElementById('tool-search') as HTMLInputElement;
   const cards = Array.from(document.querySelectorAll<HTMLElement>('.tool-card'));
-  const sections = Array.from(document.querySelectorAll<HTMLElement>('.hub-section'));
+  const chips = Array.from(document.querySelectorAll<HTMLButtonElement>('.hub-chip'));
   const empty = document.getElementById('no-results')!;
-  input.addEventListener('input', () => {
+  let cat = '';
+  const apply = () => {
     const q = input.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
     let shown = 0;
     cards.forEach((c) => {
-      const ok = q.every((w) => c.dataset.search!.includes(w));
+      const ok = (!cat || c.dataset.cat === cat) && q.every((w) => c.dataset.search!.includes(w));
       c.hidden = !ok;
       if (ok) shown++;
     });
-    sections.forEach((s) => (s.hidden = !s.querySelector('.tool-card:not([hidden])')));
     empty.hidden = shown > 0;
-  });
+  };
+  chips.forEach((chip) =>
+    chip.addEventListener('click', () => {
+      cat = chip.dataset.cat || '';
+      chips.forEach((c) => c.setAttribute('aria-pressed', String(c === chip)));
+      apply();
+    }),
+  );
+  input.addEventListener('input', apply);
   window.addEventListener('keydown', (e) => {
     if (e.key === '/' && document.activeElement !== input) { e.preventDefault(); input.focus(); }
   });
 </script>
 <style>
-  .hub-hero { padding: 48px 0 24px; max-width: 760px; }
+  .hub-hero { padding: 48px 0 20px; max-width: 760px; }
   .hub-hero h1 { font-size: clamp(1.75rem, 4vw, 2.6rem); letter-spacing: -0.025em; }
   .hub-hero p { font-size: 1.05rem; }
   .hub-search { max-width: 480px; }
   .hub-search .input { height: 42px; font-size: 1rem; }
-  .hub-section { margin-top: 28px; }
-  .hub-cat { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); font-weight: 700; }
-  .hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .hub-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 16px; }
+  .hub-chip {
+    display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
+    border-radius: 999px; border: 1px solid var(--border-strong); background: var(--bg-elev); color: var(--text-muted);
+    font: inherit; font-size: 0.85rem; font-weight: 550; cursor: pointer;
+  }
+  .hub-chip:hover { color: var(--text); background: var(--bg-hover); }
+  .hub-chip[aria-pressed='true'] { color: var(--accent-text); background: var(--accent); border-color: var(--accent); }
+  .hub-count { font-size: 0.75rem; opacity: 0.75; font-variant-numeric: tabular-nums; }
+  .hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
   .tool-card {
-    display: flex; gap: 14px; align-items: flex-start; padding: 16px;
+    display: flex; flex-direction: column; gap: 6px; padding: 18px;
     background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-lg);
     color: var(--text); transition: border-color .15s, box-shadow .15s, transform .15s;
   }
-  .tool-card:hover { text-decoration: none; border-color: var(--border-strong); box-shadow: var(--shadow); transform: translateY(-1px); }
+  .tool-card:hover, .tool-card:focus-visible { text-decoration: none; border-color: color-mix(in srgb, var(--hue) 45%, var(--border)); box-shadow: var(--shadow); transform: translateY(-2px); }
+  .tool-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
   .tool-glyph {
     flex: none; width: 42px; height: 42px; border-radius: 10px; display: grid; place-items: center;
     font-family: var(--font-mono); font-weight: 700; font-size: 0.85rem;
     color: var(--hue); background: color-mix(in srgb, var(--hue) 14%, transparent);
   }
-  .tool-card-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .tool-card-name { font-weight: 650; }
-  .tool-card-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.45; }
+  .tool-cat { font-size: 0.72rem; font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); }
+  .tool-card-name { font-weight: 650; font-size: 1.05rem; }
+  .tool-card-desc { font-size: 0.875rem; color: var(--text-muted); line-height: 1.5; flex: 1; }
+  .tool-card-go { margin-top: 6px; font-size: 0.85rem; font-weight: 600; color: var(--hue); opacity: 0; transition: opacity .15s; }
+  .tool-card:hover .tool-card-go, .tool-card:focus-visible .tool-card-go { opacity: 1; }
+  @media (hover: none) { .tool-card-go { opacity: 1; } }
 </style>

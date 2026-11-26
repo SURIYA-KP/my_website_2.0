@@ -8,27 +8,33 @@ import { setupDrag } from './drag';
 import type { PlanPage, BuildOptions } from './worker';
 
 // ---------------------------------------------------------------- worker client
-const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+// The PDF engine (pdf-lib, ~430 KB) starts on first use, not on page load.
+let worker: Worker | null = null;
 let seq = 0;
 const pending = new Map<number, { resolve: (v: any) => void; reject: (e: any) => void; onProgress?: (p: number) => void }>();
-worker.onmessage = (e) => {
-  const { id, ok, result, error, progress } = e.data;
-  const p = pending.get(id);
-  if (!p) return;
-  if (progress !== undefined) { p.onProgress?.(progress); return; }
-  pending.delete(id);
-  if (ok) p.resolve(result);
-  else p.reject(Object.assign(new Error(error?.message || 'Worker error'), { code: error?.code }));
-};
-worker.onerror = (e) => {
-  for (const p of pending.values()) p.reject(new Error(e.message || 'The PDF engine failed to start.'));
-  pending.clear();
-};
+function getWorker(): Worker {
+  if (worker) return worker;
+  worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+  worker.onmessage = (e) => {
+    const { id, ok, result, error, progress } = e.data;
+    const p = pending.get(id);
+    if (!p) return;
+    if (progress !== undefined) { p.onProgress?.(progress); return; }
+    pending.delete(id);
+    if (ok) p.resolve(result);
+    else p.reject(Object.assign(new Error(error?.message || 'Worker error'), { code: error?.code }));
+  };
+  worker.onerror = (e) => {
+    for (const p of pending.values()) p.reject(new Error(e.message || 'The PDF engine failed to start.'));
+    pending.clear();
+  };
+  return worker;
+}
 function call<T = any>(type: string, payload: unknown, transfer: Transferable[] = [], onProgress?: (p: number) => void): Promise<T> {
   const id = ++seq;
   return new Promise<T>((resolve, reject) => {
     pending.set(id, { resolve, reject, onProgress });
-    worker.postMessage({ id, type, payload }, transfer);
+    getWorker().postMessage({ id, type, payload }, transfer);
   });
 }
 
