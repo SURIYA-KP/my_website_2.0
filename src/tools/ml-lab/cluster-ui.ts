@@ -160,10 +160,17 @@ export function initClustering(theme: () => Theme) {
       if (!g) groups.set(l, (g = []));
       g.push(i);
     }
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = th.elev;
+    // halo first (all points), then fills: overlapping points merge cleanly instead of showing ring artefacts
+    ctx.beginPath();
+    for (const p0 of points) {
+      const p = toPx(p0);
+      ctx.moveTo(p.x + pr + 1, p.y);
+      ctx.arc(p.x, p.y, pr + 1, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = th.elev;
+    ctx.fill();
     for (const [l, idx] of groups) {
-      ctx.fillStyle = l >= 0 ? th.cluster[l % 10] : th.faint;
+      ctx.fillStyle = l >= 0 ? th.cluster[l % 10] : th.muted;
       ctx.beginPath();
       for (const i of idx) {
         const p = toPx(points[i]);
@@ -171,7 +178,6 @@ export function initClustering(theme: () => Theme) {
         ctx.arc(p.x, p.y, pr, 0, Math.PI * 2);
       }
       ctx.fill();
-      ctx.stroke();
     }
 
     // centroid trails + markers
@@ -431,7 +437,7 @@ export function initClustering(theme: () => Theme) {
   canvas.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     e.preventDefault();
-    canvas.setPointerCapture(e.pointerId);
+    try { canvas.setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ }
     painting = true;
     const p = eventWorld(e);
     lastPaint = p;
@@ -618,6 +624,7 @@ export function initClustering(theme: () => Theme) {
   dataSeed = 11;
   generate(false);
   showTipFor('blobs');
+  step(); // place the starting centroids so the Voronoi regions show right away
 
   return {
     redraw() { requestRender(); drawElbowNow(); drawSparkline(els.spark, inertiaHist, theme(), theme().accent); },

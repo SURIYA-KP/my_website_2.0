@@ -6,12 +6,21 @@ export interface Series { pts: [number, number][]; color: string; dash?: number[
 
 const fmt = (v: number) => {
   if (!Number.isFinite(v)) return '–';
+  if (v === 0 || (Number.isInteger(v) && Math.abs(v) < 1e6)) return String(v);
   const a = Math.abs(v);
   if (a >= 100) return v.toFixed(0);
   if (a >= 10) return v.toFixed(1);
   if (a >= 1) return v.toFixed(2);
   return v.toPrecision(2);
 };
+
+/** Round up to 1, 2, 2.5 or 5 times a power of ten, so axis labels stay readable. */
+export function niceCeil(v: number) {
+  if (!(v > 0)) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(v)));
+  for (const m of [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (v <= m * p * 1.0001) return m * p;
+  return 10 * p;
+}
 
 /** Line chart for training curves. */
 export function drawLineChart(canvas: HTMLCanvasElement, series: Series[], th: Theme, o: { yMin?: number; yMax?: number; yFmt?: (v: number) => string; empty?: string } = {}) {
@@ -26,6 +35,7 @@ export function drawLineChart(canvas: HTMLCanvasElement, series: Series[], th: T
     if (o.yMin === undefined && Number.isFinite(y) && y < yMin) yMin = y;
   }
   if (!Number.isFinite(yMax)) yMax = 1;
+  if (o.yMax === undefined) yMax = niceCeil(yMax);
   if (!Number.isFinite(yMin)) yMin = 0;
   if (yMax - yMin < 1e-9) yMax = yMin + 1;
   const X = (x: number) => padL + (x / xMax) * pw;
@@ -33,8 +43,8 @@ export function drawLineChart(canvas: HTMLCanvasElement, series: Series[], th: T
   ctx.font = '10px ' + getComputedStyle(document.body).getPropertyValue('--font-mono');
   ctx.textBaseline = 'middle';
   ctx.lineWidth = 1;
-  for (let i = 0; i <= 3; i++) {
-    const v = yMin + ((yMax - yMin) * i) / 3;
+  for (let i = 0; i <= 4; i++) {
+    const v = yMin + ((yMax - yMin) * i) / 4;
     const y = Math.round(Y(v)) + 0.5;
     ctx.strokeStyle = th.border;
     ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
@@ -125,7 +135,7 @@ export function drawElbow(canvas: HTMLCanvasElement, res: ElbowPoint[], th: Them
     ctx.fillRect(padL + (o.suggested - 1) * colW, padT - 6, colW, ph + 6);
     ctx.globalAlpha = 1;
   }
-  const maxI = Math.max(1e-9, ...res.map((r) => r.inertia));
+  const maxI = niceCeil(Math.max(1e-9, ...res.map((r) => r.inertia)));
   const Yi = (v: number) => padT + (1 - v / maxI) * ph;
   const Ys = (v: number) => padT + (1 - Math.max(0, v)) * ph;
 
