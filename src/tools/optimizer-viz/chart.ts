@@ -4,6 +4,10 @@ export interface Series {
   color: string;
   losses: number[];
   dashed?: boolean;
+  /** Drawn thicker and on top (the selected optimizer). */
+  bold?: boolean;
+  /** End marker: a dot for a finished run, a cross for a diverged one. */
+  end?: 'dot' | 'cross';
 }
 
 export interface ChartTheme {
@@ -14,7 +18,7 @@ export interface ChartTheme {
 }
 
 export interface ChartOptions {
-  fmin: number | null;
+  fmin: number;
   maxSteps: number;
   theme: ChartTheme;
 }
@@ -42,8 +46,8 @@ export function drawChart(canvas: HTMLCanvasElement, series: Series[], opts: Cha
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, cssW, cssH);
   const { theme, fmin } = opts;
-  const logMode = fmin !== null;
-  const tf = logMode ? (f: number) => Math.log10(Math.max(f - fmin!, 1e-16)) : (f: number) => f;
+  const logMode = true;
+  const tf = (f: number) => Math.log10(Math.max(f - fmin, 1e-16));
 
   // Ranges
   let lo = Infinity;
@@ -107,14 +111,19 @@ export function drawChart(canvas: HTMLCanvasElement, series: Series[], opts: Cha
   }
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  const xs = niceSteps(xMax);
+  // Integer tick spacing from the 1-2-5 series (steps are whole numbers).
+  const rawX = xMax / 4;
+  const px = Math.pow(10, Math.floor(Math.log10(rawX)));
+  const xs = Math.max(1, (rawX / px <= 1 ? 1 : rawX / px <= 2 ? 2 : rawX / px <= 5 ? 5 : 10) * px);
   for (let i = 0; i <= xMax; i += xs) {
     const x = Math.round(X(i)) + 0.5;
     ctx.beginPath();
     ctx.moveTo(x, padT);
     ctx.lineTo(x, padT + ph);
     ctx.stroke();
-    ctx.fillText(String(Math.round(i)), x, padT + ph + 5);
+    const lbl = String(Math.round(i));
+    const tw = ctx.measureText(lbl).width;
+    ctx.fillText(lbl, Math.min(x, cssW - tw / 2 - 1), padT + ph + 5);
   }
 
   // Series (decimated to ~2 points per pixel)
@@ -124,7 +133,8 @@ export function drawChart(canvas: HTMLCanvasElement, series: Series[], opts: Cha
   ctx.clip();
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
-  for (const s of series) {
+  const ordered = [...series.filter((s) => !s.bold), ...series.filter((s) => s.bold)];
+  for (const s of ordered) {
     const n = s.losses.length;
     if (!n) continue;
     const stride = Math.max(1, Math.floor(n / (pw * 2)));
@@ -142,11 +152,31 @@ export function drawChart(canvas: HTMLCanvasElement, series: Series[], opts: Cha
       }
     }
     const last = tf(s.losses[n - 1]);
-    if (Number.isFinite(last)) ctx.lineTo(X(n - 1), Y(Math.max(lo - 1, Math.min(hi + 1, last))));
+    const ex = X(n - 1);
+    const ey = Y(Math.max(lo, Math.min(hi, Number.isFinite(last) ? last : hi)));
+    if (Number.isFinite(last)) ctx.lineTo(ex, Y(Math.max(lo - 1, Math.min(hi + 1, last))));
     ctx.strokeStyle = s.color;
-    ctx.lineWidth = 1.6;
+    ctx.lineWidth = s.bold ? 2.4 : 1.4;
+    ctx.globalAlpha = s.bold ? 1 : 0.85;
     ctx.setLineDash(s.dashed ? [4, 3] : []);
     ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([]);
+    if (s.end === 'dot') {
+      ctx.fillStyle = s.color;
+      ctx.beginPath();
+      ctx.arc(ex, ey, s.bold ? 3.2 : 2.6, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (s.end === 'cross') {
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(ex - 3.5, ey - 3.5);
+      ctx.lineTo(ex + 3.5, ey + 3.5);
+      ctx.moveTo(ex + 3.5, ey - 3.5);
+      ctx.lineTo(ex - 3.5, ey + 3.5);
+      ctx.stroke();
+    }
   }
   ctx.restore();
 }

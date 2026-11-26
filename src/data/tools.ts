@@ -83,6 +83,7 @@ export const tools: Tool[] = [
   },
   {
     slug: 'optimizer-viz',
+    ready: true,
     name: 'Optimizer Race',
     tagline: 'Watch SGD, Momentum, RMSProp and Adam race across classic loss landscapes. Tune and compare.',
     category: 'AI & ML',
